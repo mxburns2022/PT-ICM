@@ -8,12 +8,12 @@ ReplicaChain::ReplicaChain(Problem& p,
     double beta_step = Nt > 1 ? (beta1 - beta0) / (Nt - 1) : 0;
     double beta = beta0;
     dE_bank = std::vector<std::vector<double>>(Nt);
-    state_bank = std::vector<std::vector<int8_t>>(Nt);
+    state_bank = std::vector<std::vector<bool>>(Nt);
     replicas = std::vector<Replica>(Nt);
     for (size_t i = 0; i < Nt; i++) {
         state_bank[i] = StateVector(p.vcount(), 1);
         dE_bank[i] = std::vector<double>(p.vcount(), 0);
-        replicas[i] = Replica(p, beta, &state_bank[i], &dE_bank[i]);
+        replicas[i] = Replica(p, beta, state_bank[i], dE_bank[i]);
         beta += beta_step;
     }
 };
@@ -47,7 +47,7 @@ void ReplicaChain::replica_exchanges (Problem& p) {
         }
     }
 }
-StateVector* ReplicaChain::solution(double& ene) {
+const StateVector& ReplicaChain::solution(double& ene) {
     ene = replicas.back().get_energy();
     return replicas.back().get_state();
 }

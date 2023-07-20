@@ -8,8 +8,13 @@
 #include <iostream>
 #include <cassert>
 #include <sstream>
+#include <boost/dynamic_bitset.hpp>
 #ifndef PT_ICM
 #define PT_ICM
+inline
+int sign(bool var) {
+    return (static_cast<int>(var)*2 - 1);
+}
 /**
  * Parallel Tempering + Isoenergetic Cluster Moves: Main approach
  *      * The backbone of the algorithm is Parallel Tempering (AKA Replica Exchange Monte Carlo), which provides ergodicity
@@ -35,7 +40,7 @@ struct Edge {
     size_t dest;
     double weight;
 };
-typedef std::vector<int8_t> StateVector; // for convenience, use boolean vectors
+typedef std::vector<bool> StateVector; // for convenience, use boolean vectors
 std::ostream& operator<<(std::ostream& out, StateVector vec);
 typedef std::vector<std::vector<double>> Matrix;
 typedef std::vector<std::list<Edge>> SparseMatrix;
@@ -55,37 +60,36 @@ class Problem {
         std::uniform_real_distribution<double> unif;
     public:
         Problem(std::string path, uint64_t seed = 0);
-        double energy (const StateVector* s) const;
-        double energy (StateVector s) const;
+        double energy (const StateVector& s) const;
         uint64_t vcount () const {return N;};
         double rand_double () {return unif(rng_engine);}
         bool is_sparse () const {return N;}
-        double calculate_dE (std::vector<double>* dE, StateVector* s) const;
+        double calculate_dE (std::vector<double>& dE, const StateVector& s) const;
 
         // Incremental Isakov step
-        void incremental_dE(std::vector<double>* dE, StateVector* s, uint32_t index) const;
+        void incremental_dE(std::vector<double>& dE, const StateVector& s, uint32_t index) const;
 };
 
 class Replica {
     private:
-        StateVector* state; // Current replica state in the problem state bank
-        std::vector<double>* dE; // deltaE pointer, will indicate location in the problem dE bank
+        StateVector state; // Current replica state in the problem state bank
+        std::vector<double> dE; // deltaE pointer, will indicate location in the problem dE bank
         uint32_t flips; // Number of flips (optional counter)
         double energy; // Current configuration energy
         double beta; // Inverse temperature of this replica
-
+        size_t offset; // 
         // Compare the boltzmann exponent with a log uniform random number
         bool mh_consider (Problem& p, uint32_t index);
         // Accept a proposed MH move
         void mh_accept (Problem& p, uint32_t index);
     public:
         Replica(): energy(0), beta(0), flips(0) {};
-        Replica(Problem& p, double _beta, StateVector* _state, std::vector<double>* _dE);
+        Replica(Problem& p, double _beta, StateVector& _state, std::vector<double>& _dE);
         inline double get_energy() const {return energy;}
-        inline StateVector* get_state() const {return state;}
+        inline const StateVector& get_state() const {return state;}
         inline size_t get_flips() const {return flips;}
-        inline void set_state( StateVector* new_state) { state = new_state;}
-        inline void set_dE( std::vector<double>* new_dE) { dE = new_dE;}
+        inline void set_state( const StateVector& new_state) { state = new_state;}
+        inline void set_dE( std::vector<double> new_dE) { dE = new_dE;}
         inline void set_ene(double new_ene) { energy = new_ene;}
         inline double get_beta() const {return beta;}
         void exchange(Replica& other);
@@ -115,13 +119,6 @@ class ReplicaChain {
         ReplicaChain(): Nt(0), beta0(0), beta1(0) {};
         ReplicaChain& operator=(const ReplicaChain& other){
             replicas = other.replicas;
-            dE_bank = other.dE_bank;
-            state_bank = other.state_bank;
-            size_t i = 0;
-            for (Replica& r: replicas) {
-                r.set_state(&state_bank[i]);
-                r.set_dE(&dE_bank[i++]);
-            }
             Nt = other.Nt;
             beta0 = other.beta0;
             beta1 = other.beta1;
@@ -131,7 +128,7 @@ class ReplicaChain {
         const std::vector<Replica>& get_replicas () {return replicas;}; 
         bool re_consider (Problem& p, Replica& r1, Replica& r2);
         void replica_exchanges (Problem& p);
-        StateVector* solution(double& ene);
+        const StateVector& solution(double& ene);
         
 };
 class ChainEnsemble {
