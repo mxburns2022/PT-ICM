@@ -9,7 +9,7 @@ int main(int argc, char** argv) {
     }
     std::string problem_path = argv[1];
     Problem p(problem_path, seed);
-    ChainEnsemble tester(p, 30, 5, 0.05, 1.5, 2000);
+    ChainEnsemble tester(p, 30, 5, 0.05, 1., 800);
     double final_ene;
     StateVector solution;
     tester.solve(p, final_ene, solution);

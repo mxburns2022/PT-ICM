@@ -7,13 +7,11 @@ ReplicaChain::ReplicaChain(Problem& p,
                                            beta1(_beta1) {
     double beta_step = Nt > 1 ? (beta1 - beta0) / (Nt - 1) : 0;
     double beta = beta0;
-    dE_bank = std::vector<std::vector<double>>(Nt);
-    state_bank = std::vector<std::vector<bool>>(Nt);
+    indices = std::vector<size_t>(Nt);
     replicas = std::vector<Replica>(Nt);
     for (size_t i = 0; i < Nt; i++) {
-        state_bank[i] = StateVector(p.vcount(), 1);
-        dE_bank[i] = std::vector<double>(p.vcount(), 0);
-        replicas[i] = Replica(p, beta, state_bank[i], dE_bank[i]);
+        indices[i] = i;
+        replicas[i] = Replica(p, beta);
         beta += beta_step;
     }
 };
@@ -33,12 +31,20 @@ bool ReplicaChain::re_consider (Problem& p, Replica& r1, Replica& r2) {
 void ReplicaChain::replica_exchanges (Problem& p) {
     StateVector temp;
     for (size_t i = 0; i < Nt-1; i++) {
-        if (re_consider(p, replicas[i], replicas[i+1])) {
-            double old_ene1 = p.energy(replicas[i].get_state());
-            double old_ene2 = p.energy(replicas[i+1].get_state());
-            replicas[i].exchange(replicas[i+1]);
+        size_t index_low = indices[i];
+        size_t index_high = indices[i+1];
+        Replica& low = replicas[indices[i]];
+        Replica& high = replicas[indices[i+1]];
+        if (re_consider(p, low, high)) {
+            double old_ene1 = p.energy(low.get_state());
+            double old_ene2 = p.energy(high.get_state());
+            double beta1 = low.get_beta();
+            double beta2 = high.get_beta();
+            low.set_beta(beta2);
+            high.set_beta(beta1);
+            std::swap(indices[i], indices[i+1]);
 #ifndef NDEBUG
-            if (std::abs(old_ene1 - replicas[i+1].get_energy()) > 1e-10) {
+            if (std::abs(old_ene1 - replicas[indices[i+1]].get_energy()) > 1e-10) {
                 std::cout << old_ene1 << " " <<  replicas[i].get_energy() << std::endl;
                 std::cout << old_ene2 << " " <<  replicas[i+1].get_energy() << std::endl;
                 exit(-1);

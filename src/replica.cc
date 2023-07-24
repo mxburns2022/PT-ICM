@@ -27,7 +27,9 @@ bool Replica::mh_consider (Problem& p, uint32_t index) {
     return rng_comp < boltzmann; 
 
 }
-Replica::Replica(Problem& p, double _beta, StateVector& _state, std::vector<double>& _dE) : beta(_beta), flips(0), state(_state), dE(_dE) {
+Replica::Replica(Problem& p, double _beta) : beta(_beta), flips(0) {
+    state = StateVector(p.vcount(), true);
+    dE = std::vector<double>(p.vcount(), 0);
     for (size_t i = 0; i < state.size(); i++) {
         if (p.rand_double() > 0.5) {
             state[i] = false;
