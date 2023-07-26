@@ -7,9 +7,19 @@ ChainEnsemble::ChainEnsemble(Problem& p,
               double _beta1,
               uint32_t _sweeps): Nc(_Nc), 
                                 sweeps(_sweeps)  {
-    chain_1 = ReplicaChain(p, _Nt, _beta0, _beta1);
-    chain_2 = ReplicaChain(p, _Nt, _beta0, _beta1);
+    chain_1 = ReplicaChain(p, _Nt, _beta0, _beta1, sweeps);
+    chain_2 = ReplicaChain(p, _Nt, _beta0, _beta1, sweeps);
 }
+ChainEnsemble::ChainEnsemble(Problem& p,
+                             uint32_t _Nt,
+                             uint32_t _Nc,
+                             const std::vector<double>& temps,
+                             const std::vector<size_t>& corr,
+                             uint32_t _sweeps): Nc(_Nc), 
+                                                sweeps(_sweeps)  {
+        chain_1 = ReplicaChain(p, _Nt, temps, corr, sweeps);
+        chain_2 = ReplicaChain(p, _Nt, temps, corr, sweeps);                                            
+    };
 void ChainEnsemble::solve(Problem& p, double& ene, StateVector& result) {
     std::cout << "Started Solving" << std::endl;
     size_t update_iters = sweeps / 100;
@@ -23,7 +33,8 @@ void ChainEnsemble::solve(Problem& p, double& ene, StateVector& result) {
     std::fflush(stdout);
     for (size_t i = 0; i < sweeps; i++, update_cnt++) {
         chain_1.do_sweeps(p);
-        chain_1.replica_exchanges(p);
+        
+        // chain_1.replica_exchanges(p);
         if (update_cnt == update_iters) {
             progress[progress_bar] = '#';
             progress_bar ++;

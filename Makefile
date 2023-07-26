@@ -1,8 +1,8 @@
 .PHONY : all clean
 
 CXX = g++
-CXXFLAGS = -std=c++17 -g -pg -O3 -Wall  -Iinclude/ -I./ -DNDEBUG
-DEBUGFLAGS = -std=c++17 -g -pg -Wall -funroll-loops -msse4.2 -mfpmath=sse -mavx -Iinclude/ -I./
+CXXFLAGS = -std=c++17 -g -pg -O3 -Wall -funroll-loops -msse4.2 -mfpmath=sse -mavx -Iinclude/ -I./ -DNDEBUG
+DEBUGFLAGS = -std=c++17 -g -pg -Wall -funroll-loops -msse4.2 -mfpmath=sse -mavx -Iinclude/ -I./ -DNDEBUG
 
 # GSET=/scratch/mhuang_lab/ISING_MACHINES/GSET/tiny_new/G281
 # BEST=28

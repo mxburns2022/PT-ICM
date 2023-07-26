@@ -58,14 +58,16 @@ class Problem {
         StateVector best_solution; // best solution found so far (lowest energy)
         std::mt19937_64 rng_engine; // Mersenne Twister random engine for RNG
         std::uniform_real_distribution<double> unif;
+        size_t burn_in; // number of burn-in steps before sampling
     public:
-        Problem(std::string path, uint64_t seed = 0);
+        Problem(std::string path, uint64_t seed = 0, size_t _burn_in = UINT64_MAX);
         double energy (const StateVector& s) const;
         uint64_t vcount () const {return N;};
         double rand_double () {return unif(rng_engine);}
+        size_t get_burn_in() const {return burn_in;}
         bool is_sparse () const {return N;}
         double calculate_dE (std::vector<double>& dE, const StateVector& s) const;
-
+        std::mt19937_64& get_rng() {return rng_engine;};
         // Incremental Isakov step
         void incremental_dE(std::vector<double>& dE, const StateVector& s, uint32_t index) const;
 };
@@ -78,13 +80,18 @@ class Replica {
         double energy; // Current configuration energy
         double beta; // Inverse temperature of this replica
         size_t offset; // 
+
         // Compare the boltzmann exponent with a log uniform random number
         bool mh_consider (Problem& p, uint32_t index);
         // Accept a proposed MH move
         void mh_accept (Problem& p, uint32_t index);
     public:
         Replica(): energy(0), beta(0), flips(0) {};
-        Replica(Problem& p, double _beta);
+        Replica(Problem& p, 
+                double _beta, 
+                const StateVector& init_state, 
+                const std::vector<double>& init_dE, 
+                double _energy);
         inline double get_energy() const {return energy;}
         inline const StateVector& get_state() const {return state;}
         inline size_t get_flips() const {return flips;}
@@ -94,6 +101,7 @@ class Replica {
         inline double get_beta() const {return beta;}
         inline void set_beta(const double new_beta) {beta = new_beta;}
         void exchange(Replica& other);
+        void log();
         Replica& operator=(const Replica& other){
             state = other.state;
             dE = other.dE;
@@ -108,25 +116,48 @@ class ReplicaChain {
     private:
         std::vector<Replica> replicas;
         uint32_t Nt;
-        double beta0;
-        double beta1;
+        size_t exchange_index;
+        std::vector<double> beta_values;
+        uint32_t sweep_counter;
+        size_t num_swaps;
+        std::vector<uint32_t> swaps; // store the replica swap order (encoded as flattened indices in an NtxNt array)
         std::vector<size_t> indices; // store the replica indices in order of ascending beta
+        std::vector<size_t> correlations; // number of sweeps for each temperature
+        // Logs to store data for specific heat, entropy, susceptibility values
+        std::vector<std::vector<double>> energy_log;
+        std::vector<std::vector<double>> magnetiziation_log;
     public:
         ReplicaChain(Problem& p,
                      uint32_t _Nt,
                      double _beta0,
-                     double _beta1);
-        ReplicaChain(): Nt(0), beta0(0), beta1(0) {};
+                     double _beta1,
+                     size_t sweeps);
+        ReplicaChain(Problem& p,
+                     uint32_t _Nt,
+                     const std::vector<double>& temperatures,
+                     const std::vector<size_t>& corr,
+                     size_t sweeps);
+        ReplicaChain(): Nt(0) {};
         ReplicaChain& operator=(const ReplicaChain& other){
             replicas = other.replicas;
             Nt = other.Nt;
-            beta0 = other.beta0;
-            beta1 = other.beta1;
+            num_swaps = other.num_swaps;
+            beta_values = other.beta_values;
+            sweep_counter = other.sweep_counter;
             indices = other.indices;
+            swaps = other.swaps;
+            energy_log = other.energy_log;
+            magnetiziation_log = other.magnetiziation_log;
+            correlations = other.correlations;
+            exchange_index = other.exchange_index;
             return *this;
         }
+        inline const std::vector<std::vector<double>> get_energy_log() const {return energy_log;}
+        inline const std::vector<std::vector<double>> get_mag_log() const {return magnetiziation_log;}
         void do_sweeps (Problem& p); 
-        const std::vector<Replica>& get_replicas () {return replicas;}; 
+        size_t get_swaps () const {return num_swaps;}; 
+        const std::vector<Replica>& get_replicas () const {return replicas;}; 
+        const std::vector<size_t>& get_indices () const {return indices;}; 
         bool re_consider (Problem& p, Replica& r1, Replica& r2);
         void replica_exchanges (Problem& p);
         const StateVector& solution(double& ene);
@@ -145,7 +176,15 @@ class ChainEnsemble {
                       double _beta0,
                       double _beta1,
                       uint32_t _sweeps);
+        ChainEnsemble(Problem& p,
+                      uint32_t _Nt,
+                      uint32_t _Nc,
+                      const std::vector<double>& temps,
+                      const std::vector<size_t>& corr,
+                      uint32_t _sweeps);
        void solve(Problem& p, double& ene, StateVector& result);
+       inline const ReplicaChain& get_chain1  () const {return chain_1;};
+       inline const ReplicaChain& get_chain2  () const {return chain_2;};
 };
 std::ostream& operator<<(std::ostream& out, ReplicaChain& rc);
 

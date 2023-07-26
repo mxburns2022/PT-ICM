@@ -27,16 +27,16 @@ bool Replica::mh_consider (Problem& p, uint32_t index) {
     return rng_comp < boltzmann; 
 
 }
-Replica::Replica(Problem& p, double _beta) : beta(_beta), flips(0) {
-    state = StateVector(p.vcount(), true);
-    dE = std::vector<double>(p.vcount(), 0);
-    for (size_t i = 0; i < state.size(); i++) {
-        if (p.rand_double() > 0.5) {
-            state[i] = false;
-        }
-    }
-    energy = p.calculate_dE(dE, state);
-    assert(std::abs(energy - p.energy(state)) < 1e-10);
+Replica::Replica(Problem& p, 
+                 double _beta, 
+                 const StateVector& init_state, 
+                 const std::vector<double>& init_dE,
+                 double _energy): beta(_beta), 
+                                 flips(0), 
+                                 state(init_state),
+                                 dE(init_dE),
+                                 energy(_energy){
+    std::cout << state << std::endl;
 };
 void Replica::exchange(Replica& other) {
     std::swap(other.energy, energy);

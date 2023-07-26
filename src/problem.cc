@@ -104,7 +104,7 @@ void Problem::incremental_dE(std::vector<double>& dE, const StateVector& s, uint
     }
 }
 
-Problem::Problem(std::string path, uint64_t seed ): rng_engine(seed) {
+Problem::Problem(std::string path, uint64_t seed, uint64_t _burn_in): rng_engine(seed), burn_in(_burn_in) {
     std::fstream infile;
     infile.open(path, std::fstream::in);
 
