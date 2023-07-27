@@ -4,6 +4,10 @@
 #include <boost/format.hpp>
 #include <time.h>
 
+
+
+
+
 int main(int argc, char** argv) {
     assert(argc > 1);
     size_t seed = time(NULL);
@@ -15,10 +19,10 @@ int main(int argc, char** argv) {
     size_t sweeps = 4000;
     Problem p(problem_path, seed, 1000);
     size_t Nt = 19;
-    std::vector<double> beta = get_cae(p, Nt, 0);
-    std::vector<size_t> corr_sweeps = std::vector<size_t>(Nt, 1);
-    std::cout << beta << std::endl;
-    ChainEnsemble tester(p, Nt, 5, beta, corr_sweeps, 3000, true);
+    // std::vector<double> beta = get_cae(p, Nt, 0);
+    // std::vector<size_t> corr_sweeps = std::vector<size_t>(Nt, 1);
+    // std::cout << beta << std::endl;
+    ChainEnsemble tester(p, Nt, 5, 0.1, 1, 10000, true);
     double final_ene;
     StateVector solution;
     tester.solve(p, final_ene, solution);
