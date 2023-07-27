@@ -8,6 +8,7 @@
 #include <iostream>
 #include <cassert>
 #include <sstream>
+#include <mpi.h>
 #include <boost/dynamic_bitset.hpp>
 #ifndef PT_ICM
 #define PT_ICM
@@ -62,6 +63,7 @@ class Problem {
     public:
         Problem(std::string path, uint64_t seed = 0, size_t _burn_in = UINT64_MAX);
         double energy (const StateVector& s) const;
+        double maxcut (const StateVector& s) const;
         uint64_t vcount () const {return N;};
         double rand_double () {return unif(rng_engine);}
         size_t get_burn_in() const {return burn_in;}

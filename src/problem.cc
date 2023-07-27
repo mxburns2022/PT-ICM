@@ -81,7 +81,24 @@ double Problem::energy (const StateVector& s) const {
     }
     return ene;
 };
-
+double Problem::maxcut(const StateVector& s) const {
+    double cut = 0.0;
+    for (size_t i = 0; i < N; i++) {
+        int8_t ival = s[i];
+        if (sparse) {
+            const std::list<Edge>& iedges = formulation_sparse.at(i);
+            for (auto e: iedges) {
+                cut += ival != s[e.dest] ? 0.5 * e.weight: 0;
+            }
+        } else {
+            const std::vector<double>& iedges = formulation.at(i);
+            for (size_t j = i+1; j < N; j++) {
+                cut += ival != s[j] ? iedges[j]: 0;
+            }
+        }
+    }
+    return cut;
+}
 // Incremental Isakov step
 void Problem::incremental_dE(std::vector<double>& dE, const StateVector& s, uint32_t index) const {
     double local_field, ene_term;

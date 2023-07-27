@@ -25,6 +25,7 @@ std::ostream& operator<<(std::ostream& out, ReplicaChain& rc) {
     return out;
 }   
 
+
 // void get_histogram(Problem& p, std::vector<double>& temperatures, size_t Nt, size_t nsweeps, size_t bins, double r) {
 //     double beta0 = 0.05;
 //     double beta1 = 2;

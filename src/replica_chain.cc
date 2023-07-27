@@ -7,6 +7,7 @@ ReplicaChain::ReplicaChain(Problem& p,
                            double beta1,
                            size_t sweeps): Nt(_Nt),
                                            sweep_counter(0) {
+    correlations = std::vector<size_t>(Nt, 1);
     num_swaps = 0;
     beta_values = std::vector<double>(Nt);
     exchange_index = 0;
