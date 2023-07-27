@@ -8,8 +8,6 @@ struct Histogram {
     double start_value;
     std::vector<size_t> hist;
 };
-
-void get_histogram(Problem& p, std::vector<double>& temperatures, size_t Nt);
-
+std::vector<double> get_cae(Problem& p, size_t Nt, size_t trials);
 
 #endif

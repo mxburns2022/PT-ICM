@@ -8,7 +8,6 @@
 #include <iostream>
 #include <cassert>
 #include <sstream>
-#include <mpi.h>
 #include <boost/dynamic_bitset.hpp>
 #ifndef PT_ICM
 #define PT_ICM
@@ -128,22 +127,29 @@ class ReplicaChain {
         // Logs to store data for specific heat, entropy, susceptibility values
         std::vector<std::vector<double>> energy_log;
         std::vector<std::vector<double>> magnetiziation_log;
+        std::vector<size_t> flip_logs;
+        std::vector<size_t> cons_logs;
+        bool log_data;
     public:
         ReplicaChain(Problem& p,
                      uint32_t _Nt,
                      double _beta0,
                      double _beta1,
-                     size_t sweeps);
+                     size_t sweeps,
+                     bool _log_data = false);
         ReplicaChain(Problem& p,
                      uint32_t _Nt,
                      const std::vector<double>& temperatures,
                      const std::vector<size_t>& corr,
-                     size_t sweeps);
+                     size_t sweeps,
+                     bool _log_data = false);
         ReplicaChain(): Nt(0) {};
         ReplicaChain& operator=(const ReplicaChain& other){
             replicas = other.replicas;
             Nt = other.Nt;
             num_swaps = other.num_swaps;
+            flip_logs = other.flip_logs;
+            cons_logs = other.cons_logs;
             beta_values = other.beta_values;
             sweep_counter = other.sweep_counter;
             indices = other.indices;
@@ -151,6 +157,7 @@ class ReplicaChain {
             energy_log = other.energy_log;
             magnetiziation_log = other.magnetiziation_log;
             correlations = other.correlations;
+            log_data = other.log_data;
             exchange_index = other.exchange_index;
             return *this;
         }
@@ -162,6 +169,16 @@ class ReplicaChain {
         const std::vector<size_t>& get_indices () const {return indices;}; 
         bool re_consider (Problem& p, Replica& r1, Replica& r2);
         void replica_exchanges (Problem& p);
+        void print_A_swap() const {
+            std::vector<double> output(Nt);
+            printf("[");
+            for (size_t i = 0; i < Nt-1; i++) {
+                printf("%f, ", static_cast<double>(flip_logs[i]) / cons_logs[i]);
+            }
+            printf("%f]\n", static_cast<double>(flip_logs.back()) / cons_logs.back());
+            std::cout << flip_logs << std::endl;
+            std::cout << cons_logs << std::endl;
+        }
         const StateVector& solution(double& ene);
         
 };
@@ -177,13 +194,15 @@ class ChainEnsemble {
                       uint32_t _Nc,
                       double _beta0,
                       double _beta1,
-                      uint32_t _sweeps);
+                      uint32_t _sweeps,
+                      bool record = false);
         ChainEnsemble(Problem& p,
                       uint32_t _Nt,
                       uint32_t _Nc,
                       const std::vector<double>& temps,
                       const std::vector<size_t>& corr,
-                      uint32_t _sweeps);
+                      uint32_t _sweeps,
+                      bool record = false);
        void solve(Problem& p, double& ene, StateVector& result);
        inline const ReplicaChain& get_chain1  () const {return chain_1;};
        inline const ReplicaChain& get_chain2  () const {return chain_2;};

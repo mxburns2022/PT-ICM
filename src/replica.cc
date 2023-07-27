@@ -32,11 +32,10 @@ Replica::Replica(Problem& p,
                  const StateVector& init_state, 
                  const std::vector<double>& init_dE,
                  double _energy): beta(_beta), 
-                                 flips(0), 
-                                 state(init_state),
-                                 dE(init_dE),
-                                 energy(_energy){
-    std::cout << state << std::endl;
+                                  flips(0), 
+                                  state(init_state),
+                                  dE(init_dE),
+                                  energy(_energy){
 };
 void Replica::exchange(Replica& other) {
     std::swap(other.energy, energy);
