@@ -49,6 +49,20 @@
         "cinttypes": "cpp",
         "typeinfo": "cpp",
         "list": "cpp",
-        "fstream": "cpp"
+        "fstream": "cpp",
+        "cstring": "cpp",
+        "ctime": "cpp",
+        "bitset": "cpp",
+        "set": "cpp",
+        "optional": "cpp",
+        "typeindex": "cpp",
+        "variant": "cpp",
+        "chrono": "cpp",
+        "condition_variable": "cpp",
+        "ratio": "cpp",
+        "mutex": "cpp",
+        "semaphore": "cpp",
+        "stop_token": "cpp",
+        "thread": "cpp"
     }
 }
