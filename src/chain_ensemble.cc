@@ -66,18 +66,19 @@ void ChainEnsemble::bfs_icm(Problem& p, size_t seed_val, const std::vector<bool>
     StateVector& state_2 = r2.get_state();
     std::vector<bool> added(p.vcount(), false);
     size_t numflipped = 0;
-    // std::cout << xorvals<< std::endl;
     double r1_ene = r1.get_energy();
     double r2_ene = r2.get_energy();
-    const std::vector<double>& dE_1 = r1.get_dE();
-    const std::vector<double>& dE_2 = r2.get_dE();
+    double start_ene = r1_ene + r2_ene;
+    added[seed_val] = true;
+    std::vector<double>& dE_1 = r1.get_dE();
+    std::vector<double>& dE_2 = r2.get_dE();
     while(!ind_stack.empty()) {
         size_t ind = ind_stack.top();
         ind_stack.pop();
         r1_ene += dE_1[ind];
         r2_ene += dE_2[ind];
-        p.incremental_dE(r1.get_dE(), state_1, ind);
-        p.incremental_dE(r2.get_dE(), state_2, ind);
+        p.incremental_dE(dE_1, state_1, ind);
+        p.incremental_dE(dE_2, state_2, ind);
         state_1[ind] = !state_1[ind];
         state_2[ind] = !state_2[ind];
         numflipped ++;
@@ -101,6 +102,11 @@ void ChainEnsemble::bfs_icm(Problem& p, size_t seed_val, const std::vector<bool>
     }
     r1.set_ene(r1_ene);
     r2.set_ene(r2_ene);
+
+    if(std::abs(start_ene - (r1_ene + r2_ene)) > 1e-10){
+        printf("ERROR, cluster move not isoenergetic\n\t%f\t%f\t%f\n", start_ene, r1_ene + r2_ene, p.energy(state_1)+p.energy(state_2));
+        exit(-1);
+    }
     // std::cout << r1.get_beta() << " " << r2.get_beta() << " " << static_cast<double>(numflipped) / p.vcount() << std::endl;
 }
 void ChainEnsemble::perform_icm(Problem& p) {    
@@ -124,7 +130,7 @@ void ChainEnsemble::perform_icm(Problem& p) {
         StateVector& state_1 = r1.get_state();
         StateVector& state_2 = r2.get_state();
         for (size_t j = 0; j < p.vcount(); j++) {
-            size_t val = state_1[j] != state_2[j];
+            size_t val = state_1[j] ^ state_2[j];
             xorval[j] = val;
             if (val == 1) {
                 oneinds.push_back(j);
@@ -134,6 +140,7 @@ void ChainEnsemble::perform_icm(Problem& p) {
         // Flip all states in R1 if cluster site counts are sufficiently large
         if (cluster_sites > p.vcount() / 2) {
             oneinds.clear();
+            std::vector<double>& dE = r1.get_dE();
             for (size_t j = 0; j < p.vcount(); j++) {
                 state_1[j] = !state_1[j];
                 xorval[j] = !xorval[j];
@@ -143,6 +150,9 @@ void ChainEnsemble::perform_icm(Problem& p) {
             }
         }
         std::vector<size_t> seed_val(1);
+        if (oneinds.size() == 0) {
+            continue;
+        }
         std::sample(oneinds.begin(), oneinds.end(), seed_val.begin(), 1, p.get_rng());
         bfs_icm(p, seed_val.front(), xorval, r1, r2);
     }
