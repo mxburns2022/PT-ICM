@@ -1,4 +1,6 @@
 #include "pt_icm.hh"
+#include <float.h>
+
 void Replica::sweep (Problem& p) {
     for (size_t i = 0; i < p.vcount(); i++) {
         if (mh_consider(p, i)) {
@@ -10,6 +12,10 @@ void  Replica::mh_accept (Problem& p, uint32_t index) {
     energy += dE[index];
     p.incremental_dE(dE, state, index);
     state[index] = !state[index];
+    if (energy < best_ene) {
+        best_ene = energy;
+        best_state = state;
+    }
 #ifndef NDEBUG
     if (std::abs(energy - p.energy(state)) > 1e-10) {
         std::cout << "Incorrect Update " << energy << " " <<  p.energy(state) << std::endl;
@@ -36,6 +42,8 @@ Replica::Replica(Problem& p,
                                   state(init_state),
                                   dE(init_dE),
                                   energy(_energy){
+    best_ene = DBL_MAX;
+    best_state = init_state;
 };
 void Replica::exchange(Replica& other) {
     std::swap(other.energy, energy);

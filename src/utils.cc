@@ -1,6 +1,11 @@
 #include "pt_icm.hh"
 #include "utils.hh"
 
+void parse_args(int argc, 
+                char** argv,
+                size_t) {
+
+}
 std::ostream& operator<<(std::ostream& out, StateVector vec){
     out << "[";
     if (vec.size() > 0) {

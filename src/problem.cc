@@ -132,10 +132,8 @@ Problem::Problem(std::string path, uint64_t seed, uint64_t _burn_in): rng_engine
     // Sparse if less than 10% of possible edges exist
     sparse = (static_cast<double>(M) / (N*(N-1) / 2)) < 0.1;
     if (sparse) {
-        std::cout << "Sparse" << std::endl;
         formulation_sparse = SparseMatrix(N);
     } else {
-        std::cout << "Dense" << std::endl;
         formulation = Matrix(N);
         for (size_t i = 0; i < N; i++) {
             formulation[i] = std::vector<double>(N, 0.0);
