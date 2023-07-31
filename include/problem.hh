@@ -23,6 +23,8 @@ class Problem {
         uint64_t vcount () const {return N;};
         double rand_double () {return unif(rng_engine);}
         size_t get_burn_in() const {return burn_in;}
+        const std::list<Edge>& get_sparse_neighbors(size_t ind) const {return formulation_sparse[ind];}
+        const std::vector<double>& get_dense_neighbors(size_t ind) const {return formulation[ind];}
         bool is_sparse () const {return N;}
         double calculate_dE (std::vector<double>& dE, const StateVector& s) const;
         std::mt19937_64& get_rng() {return rng_engine;};

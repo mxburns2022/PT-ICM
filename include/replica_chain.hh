@@ -21,7 +21,7 @@ class ReplicaChain {
         // Logs to store data for specific heat, entropy, susceptibility values
         std::vector<std::vector<double>> energy_log;
         std::vector<std::vector<double>> magnetiziation_log;
-        std::vector<size_t> flip_logs;
+        std::vector<size_t> swap_logs;
         std::vector<size_t> cons_logs;
         bool log_data;
         void type1_init(Problem& p);
@@ -49,7 +49,7 @@ class ReplicaChain {
             replicas = other.replicas;
             Nt = other.Nt;
             num_swaps = other.num_swaps;
-            flip_logs = other.flip_logs;
+            swap_logs = other.swap_logs;
             cons_logs = other.cons_logs;
             beta_values = other.beta_values;
             sweep_counter = other.sweep_counter;
@@ -67,11 +67,15 @@ class ReplicaChain {
         inline const std::vector<std::vector<double>> get_mag_log() const {return magnetiziation_log;}
         inline const std::vector<double> get_beta_values() const {return beta_values;}
         const std::vector<Replica>& get_replicas () const {return replicas;}; 
+        std::vector<Replica>& get_replicas () {return replicas;}; 
         const std::vector<size_t>& get_indices () const {return indices;}; 
         size_t get_swaps () const {return num_swaps;}; 
+        size_t get_flips () const { 
+            return std::accumulate(replicas.begin(), replicas.end(), 0, [] (size_t val, const Replica& r1) {return val + r1.get_flips();});
+        }
         void allocate_logs (size_t sweeps); // allocate log space
         void update_log (); // Add energy and magnetization data to the logs
-
+    
         // core MCMC functions 
         void solve (Problem& p, size_t pts, double& ene, StateVector& result, Initialization init_type = Initialization::TypeA); // solve problem
         void do_sweeps (Problem& p); 
@@ -83,14 +87,14 @@ class ReplicaChain {
             std::vector<double> output(Nt);
             printf("[");
             for (size_t i = 0; i < Nt-1; i++) {
-                printf("%f, ", static_cast<double>(flip_logs[i]) / cons_logs[i]);
+                printf("%f, ", static_cast<double>(swap_logs[i]) / cons_logs[i]);
             }
-            printf("%f]\n", static_cast<double>(flip_logs.back()) / cons_logs.back());
-            std::cout << flip_logs << std::endl;
+            printf("%f]\n", static_cast<double>(swap_logs.back()) / cons_logs.back());
+            std::cout << swap_logs << std::endl;
             std::cout << cons_logs << std::endl;
         }
         
         // return solution
-        const StateVector& solution(double& ene);
+        const StateVector solution(double& ene);
 };
 #endif

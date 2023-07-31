@@ -24,13 +24,16 @@ class Replica {
                 const std::vector<double>& init_dE, 
                 double _energy);
         inline double get_energy() const {return energy;}
+        inline void set_energy(double new_ene) {energy = new_ene;}
         inline const StateVector& get_state() const {return state;}
+        inline StateVector& get_state() {return state;}
         inline size_t get_flips() const {return flips;}
         inline void set_state( const StateVector& new_state) { state = new_state;}
         inline void set_dE( std::vector<double> new_dE) { dE = new_dE;}
         inline void set_ene(double new_ene) { energy = new_ene;}
         inline double get_beta() const {return beta;}
         inline void set_beta(const double new_beta) {beta = new_beta;}
+        inline std::vector<double>& get_dE() {return dE;}
         inline const StateVector& get_best_state() const { return best_state; }
         inline double get_best_ene() const { return best_ene; }
 
@@ -40,6 +43,7 @@ class Replica {
             state = other.state;
             dE = other.dE;
             energy = other.energy;
+            best_ene = other.best_ene;
             beta = other.beta;
             flips = other.flips;
             return *this;

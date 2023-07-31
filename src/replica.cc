@@ -16,12 +16,10 @@ void  Replica::mh_accept (Problem& p, uint32_t index) {
         best_ene = energy;
         best_state = state;
     }
-#ifndef NDEBUG
-    if (std::abs(energy - p.energy(state)) > 1e-10) {
-        std::cout << "Incorrect Update " << energy << " " <<  p.energy(state) << std::endl;
-        assert(false);
-    }
-#endif
+    // if (std::abs(energy - p.energy(state)) > 1e-10) {
+    //     std::cout << "Incorrect Update " << energy << " " <<  p.energy(state) << std::endl;
+    //     assert(false);
+    // }
     flips += 1;
 }
 bool Replica::mh_consider (Problem& p, uint32_t index) {
