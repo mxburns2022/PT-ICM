@@ -34,12 +34,12 @@ bin/*.o  : include/*.hh
 $(TARGET) : $(OBJ)
 	module unload gcc; \
 	module load gcc/7.3.0; \
-	$(CXX) $(CXXFLAGS) -o $@ $^
+	$(CXX) $(CXXFLAGS) -o $@ $^ -lboost
 
 bin/%.o : src/%.cc
 	module unload gcc; \
 	module load gcc/7.3.0; \
-	$(CXX) $(CXXFLAGS) $(MACROS) -o $@ -c $< 
+	$(CXX) $(CXXFLAGS) $(MACROS) -o $@ -c $< -lboost
 run: $(TARGET)
 	module unload gcc; \
 	module load gcc/7.3.0; \
@@ -48,7 +48,7 @@ debug: CXXFLAGS=$(DEBUGFLAGS)
 debug: $(OBJ)
 	module unload gcc; \
 	module load gcc/7.3.0; \
-	$(CXX) $(CXXFLAGS) -o $@ $^
+	$(CXX) $(CXXFLAGS) -o $@ $^ -lboost
 
 clean :
 	rm -rf $(OBJ) $(TARGET) debug

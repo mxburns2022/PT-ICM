@@ -20,7 +20,7 @@ class ReplicaChain {
         std::vector<size_t> correlations; // number of sweeps for each temperature
         // Logs to store data for specific heat, entropy, susceptibility values
         std::vector<std::vector<double>> energy_log;
-        std::vector<std::vector<double>> magnetiziation_log;
+        std::vector<std::vector<double>> magnetization_log;
         std::vector<size_t> swap_logs;
         std::vector<size_t> cons_logs;
         bool log_data;
@@ -56,7 +56,7 @@ class ReplicaChain {
             indices = other.indices;
             swaps = other.swaps;
             energy_log = other.energy_log;
-            magnetiziation_log = other.magnetiziation_log;
+            magnetization_log = other.magnetization_log;
             correlations = other.correlations;
             log_data = other.log_data;
             exchange_index = other.exchange_index;
@@ -64,7 +64,7 @@ class ReplicaChain {
         }
         // Accessor functions
         inline const std::vector<std::vector<double>> get_energy_log() const {return energy_log;}
-        inline const std::vector<std::vector<double>> get_mag_log() const {return magnetiziation_log;}
+        inline const std::vector<std::vector<double>> get_mag_log() const {return magnetization_log;}
         inline const std::vector<double> get_beta_values() const {return beta_values;}
         const std::vector<Replica>& get_replicas () const {return replicas;}; 
         std::vector<Replica>& get_replicas () {return replicas;}; 

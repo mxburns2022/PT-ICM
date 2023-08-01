@@ -3,7 +3,8 @@
 #include "utils.hh"
 #include <time.h>
 #include <boost/format.hpp>
-
+#include <boost/program_options.hpp>
+namespace po = boost::program_options;
 void parse_args (int argc, 
                  char** argv,
                  size_t& seed,
@@ -11,64 +12,80 @@ void parse_args (int argc,
                  size_t& Nt,
                  size_t& pts,
                  size_t& burn_in,
-                 double& beta0,
-                 double& beta1,
+                 double& T0,
+                 double& T1,
                  bool& inverse,
                  bool& log_data) {
-    inverse = false;
-    log_data = false;
-    beta0 = 1.6;
-    beta1 = 0.1;
-    pts = 1000;
-    burn_in = 0;
-    Nt = 20;
-    seed = 0;
-    for (size_t i = 1; i < argc; i++) {
-        std::string param_name = argv[i];
-        if (param_name == "--seed" || param_name == "-s") {
-            assert(i != argc - 1);
-            seed = std::stoull(argv[++i]);
-        }
-        else if (param_name == "--problem" || param_name == "-p") {
-            assert(i != argc - 1);
-            problem_path = argv[++i];
+    po::options_description desc("Allowed options");
+    desc.add_options()
+        ("help", "produce help message")
+        ("seed", po::value<size_t>()->default_value(time(NULL)), "random seed")
+        ("problem", "path to problem file (GSET)")
+        ("burn_in", po::value<size_t>()->default_value(500), "number of MCMC burn-in steps before logging")
+        ("replicas", po::value<size_t>()->default_value(20), "number of independent temperatures to simulate")
+        ("pts", po::value<size_t>()->default_value(2000), "number of parallel tempering steps (one sweep per replica, one replica exchange attempt, one ICM)")
+        ("temp0", po::value<double>()->default_value(0.1), "Starting temperature")
+        ("temp1", po::value<double>()->default_value(1.6), "Ending temperature")
+        ("inverse", po::value<bool>()->default_value(false), "Interpret temperatures as inverted")
+        ("log", po::value<bool>()->default_value(false), "Log data and calculate observables (u and c)")
+    ;
+    po::variables_map opts;
+    po::store(po::parse_command_line(argc, argv, desc), opts);
+    seed = opts["seed"].as<size_t>();
+    problem_path = opts["problem"].as<std::string>();
+    Nt = opts["replicas"].as<size_t>();
+    pts = opts["pts"].as<size_t>();
+    burn_in = opts["burn_in"].as<size_t>();
+    T0 = opts["temp0"].as<double>();
+    T1 = opts["temp1"].as<double>();
+    inverse = opts["inverse"].as<bool>();
+    log_data = opts["log"].as<bool>();
+    // for (size_t i = 1; i < argc; i++) {
+    //     std::string param_name = argv[i];
+    //     if (param_name == "--seed" || param_name == "-s") {
+    //         assert(i != argc - 1);
+    //         seed = std::stoull(argv[++i]);
+    //     }
+    //     else if (param_name == "--problem" || param_name == "-p") {
+    //         assert(i != argc - 1);
+    //         problem_path = argv[++i];
             
-        }
-        else if (param_name == "--burn_in" || param_name == "-b") {
-            assert(i != argc - 1);
-            burn_in = std::stoull(argv[++i]);
+    //     }
+    //     else if (param_name == "--burn_in" || param_name == "-b") {
+    //         assert(i != argc - 1);
+    //         burn_in = std::stoull(argv[++i]);
             
-        }
-        else if (param_name == "--replicas" || param_name == "-r") {
-            assert(i != argc - 1);
-            Nt = std::stoull(argv[++i]);
+    //     }
+    //     else if (param_name == "--replicas" || param_name == "-r") {
+    //         assert(i != argc - 1);
+    //         Nt = std::stoull(argv[++i]);
             
-        }
-        else if (param_name == "--pts" || param_name == "-t") {
-            assert(i != argc - 1);
-            pts = std::stoull(argv[++i]);
+    //     }
+    //     else if (param_name == "--pts" || param_name == "-t") {
+    //         assert(i != argc - 1);
+    //         pts = std::stoull(argv[++i]);
             
-        }
-        else if (param_name == "--beta0" || param_name == "-b0") {
-            assert(i != argc - 1);
-            beta0 = std::stod(argv[++i]);
+    //     }
+    //     else if (param_name == "--temp0" || param_name == "-t0") {
+    //         assert(i != argc - 1);
+    //         beta0 = std::stod(argv[++i]);
             
-        }
-        else if (param_name == "--beta1" || param_name == "-b1") {
-            assert(i != argc - 1);
-            beta1 = std::stod(argv[++i]);
-        }
-        else if (param_name == "--inverse" || param_name == "-i") {
-            inverse = true;
-        }
-        else if (param_name == "--log" || param_name == "-l") {
-            log_data = true;
-        } else {
-            printf("Unrecognized option \"%s\"\n", param_name.c_str());
-            exit(-1);
-        }
+    //     }
+    //     else if (param_name == "--temp1" || param_name == "-t1") {
+    //         assert(i != argc - 1);
+    //         beta1 = std::stod(argv[++i]);
+    //     }
+    //     else if (param_name == "--inverse" || param_name == "-i") {
+    //         inverse = true;
+    //     }
+    //     else if (param_name == "--log" || param_name == "-l") {
+    //         log_data = true;
+    //     } else {
+    //         printf("Unrecognized option \"%s\"\n", param_name.c_str());
+    //         exit(-1);
+    //     }
 
-    }
+    // }
 }
 
 

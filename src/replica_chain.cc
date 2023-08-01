@@ -23,7 +23,7 @@ ReplicaChain::ReplicaChain(Problem& p,
     swaps = std::vector<uint32_t>(Nt-1);
     StateVector init = StateVector(p.vcount(), false);
     energy_log = std::vector<std::vector<double>>(Nt);
-    magnetiziation_log = std::vector<std::vector<double>>(Nt);
+    magnetization_log = std::vector<std::vector<double>>(Nt);
 
     std::vector<double> dE(p.vcount(), 0);
     for (size_t i = 0; i < init.size(); i++) {
@@ -82,7 +82,7 @@ ReplicaChain::ReplicaChain(Problem& p,
     double init_ene = p.calculate_dE(dE, init);
     double beta_value;
     energy_log = std::vector<std::vector<double>>(Nt);
-    magnetiziation_log = std::vector<std::vector<double>>(Nt);
+    magnetization_log = std::vector<std::vector<double>>(Nt);
 
     for (size_t i = 0; i < Nt-1; i++) {
         swaps[i] = i;
@@ -111,7 +111,7 @@ void ReplicaChain::allocate_logs(size_t sweeps) {
     for (std::vector<double>& i: energy_log) {
         i.reserve(sweeps);
     }
-    for (std::vector<double>& i: magnetiziation_log) {
+    for (std::vector<double>& i: magnetization_log) {
         i.reserve(sweeps);
     }
 }
@@ -165,7 +165,7 @@ void ReplicaChain::do_sweeps (Problem& p) {
             for (bool b: r.get_state()) {
                 m += b ? 1.0 : 0.0;
             }
-            magnetiziation_log[ind].push_back(m / p.vcount());
+            magnetization_log[ind].push_back(m / p.vcount());
             energy_log[ind].push_back(r.get_energy());
         }
         

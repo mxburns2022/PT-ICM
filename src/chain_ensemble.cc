@@ -34,7 +34,7 @@ void ChainEnsemble::solve(Problem& p, double& ene, StateVector& result, size_t p
     for (size_t i = 0; i < pts; i++, update_cnt++) {
         chain_1.do_sweeps(p);
         chain_2.do_sweeps(p);
-        perform_icm(p);
+        //perform_icm(p);
         if (update_cnt == update_iters) {
             progress[progress_bar] = '#';
             progress_bar ++;
