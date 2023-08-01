@@ -3,6 +3,7 @@
 #include <list>
 #include <vector>
 #include <iostream>
+#include "mpi.h"
 struct Parameters {
     size_t burn_in;
     size_t sweeps;

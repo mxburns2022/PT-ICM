@@ -1,5 +1,32 @@
 #include "pt_icm.hh"
 
+void Problem::serialize(double* weights, int* src, int* dest) {
+    if (sparse) {
+        size_t ind = 0;
+        int srcnode = 0;
+        for (auto& i : formulation_sparse) {
+            for (Edge e: i) {
+                if (srcnode < e.dest){
+                    weights[ind] = e.weight;
+                    src[ind] = srcnode;
+                    dest[ind] = e.dest;
+                    ind++;
+                    
+                }
+            }
+            srcnode++;
+        }
+        assert(ind == M);
+    } else {
+        printf("DENSE\n");
+        double* curr_val = weights;
+        for (auto& i : formulation) {
+            std::memcpy(curr_val, i.data(), N * sizeof(double));
+            curr_val += N;
+        }
+    }
+};
+
 double Problem::calculate_dE (std::vector<double>& dE, const StateVector& s) const {
     double ene = 0.0;
     double ene_term;
@@ -144,11 +171,12 @@ Problem::Problem(std::string path, uint64_t seed, uint64_t _burn_in): rng_engine
     
     std::string line;
     std::istringstream linestream;
-    char_ene = 0;
+
     while(std::getline(infile, line)) {
         if (line.size() <= 1) {
             continue;
         }
+
         linestream = std::istringstream(line);
         linestream >> u >> v;
         u += offset;
@@ -158,7 +186,6 @@ Problem::Problem(std::string path, uint64_t seed, uint64_t _burn_in): rng_engine
         } else {
             linestream >> w;
         }
-        char_ene = std::max(std::abs(w), char_ene);
         if (sparse) {
             formulation_sparse[u].push_back({v, w});
             formulation_sparse[v].push_back({u, w});
@@ -167,4 +194,5 @@ Problem::Problem(std::string path, uint64_t seed, uint64_t _burn_in): rng_engine
             formulation[v][u] = w;
         }
     }
+    infile.close();
 };

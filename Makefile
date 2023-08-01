@@ -1,6 +1,6 @@
 .PHONY : all clean
 
-CXX = g++
+CXX = mpic++
 CXXFLAGS = -std=c++17 -O3 -Wall -funroll-loops -msse4.2 -mfpmath=sse -mavx -Iinclude/ -I./ -DNDEBUG
 DEBUGFLAGS = -std=c++17 -g -pg -Wall -funroll-loops -msse4.2 -mfpmath=sse -mavx -Iinclude/ -I./ -DNDEBUG
 
@@ -34,12 +34,12 @@ bin/*.o  : include/*.hh
 $(TARGET) : $(OBJ)
 	module unload gcc; \
 	module load gcc/7.3.0; \
-	$(CXX) $(CXXFLAGS) -o $@ $^ -lboost
+	$(CXX) $(CXXFLAGS) -o $@ $^ -lboost_program_options
 
 bin/%.o : src/%.cc
 	module unload gcc; \
 	module load gcc/7.3.0; \
-	$(CXX) $(CXXFLAGS) $(MACROS) -o $@ -c $< -lboost
+	$(CXX) $(CXXFLAGS) $(MACROS) -o $@ -c $< -lboost_program_options
 run: $(TARGET)
 	module unload gcc; \
 	module load gcc/7.3.0; \
@@ -48,7 +48,7 @@ debug: CXXFLAGS=$(DEBUGFLAGS)
 debug: $(OBJ)
 	module unload gcc; \
 	module load gcc/7.3.0; \
-	$(CXX) $(CXXFLAGS) -o $@ $^ -lboost
+	$(CXX) $(CXXFLAGS) -o $@ $^ -lboost_program_options
 
 clean :
 	rm -rf $(OBJ) $(TARGET) debug

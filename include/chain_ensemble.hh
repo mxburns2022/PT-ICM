@@ -10,6 +10,20 @@ class ChainEnsemble {
         ReplicaChain chain_2;
         uint32_t Nc;
         uint32_t sweeps;
+        uint32_t Nt;
+        size_t exchange_index;
+        std::vector<double> beta_values;
+        uint32_t sweep_counter;
+        size_t num_swaps;
+        std::vector<uint32_t> swaps; // store the replica swap order (encoded as flattened indices in an NtxNt array)
+        std::vector<size_t> indices; // store the replica indices in order of ascending beta
+        std::vector<size_t> correlations; // number of sweeps for each temperature
+        // Logs to store data for specific heat, entropy, susceptibility values
+        std::vector<std::vector<double>> energy_log;
+        std::vector<std::vector<double>> magnetization_log;
+        std::vector<size_t> swap_logs;
+        std::vector<size_t> cons_logs;
+        bool log_data;
         void perform_icm(Problem& p);
         void bfs_icm(Problem& p, size_t seed, const std::vector<bool>& xorvals, Replica& r1, Replica& r2);
     public:

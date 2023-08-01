@@ -1,6 +1,6 @@
 #include "pt_icm.hh"
 #include <stack>
-
+#include "mpi.h"
 ChainEnsemble::ChainEnsemble(Problem& p,
               uint32_t _Nt,
               uint32_t _Nc,
@@ -8,8 +8,47 @@ ChainEnsemble::ChainEnsemble(Problem& p,
               double _beta1,
               bool record,
               bool inverse): Nc(_Nc)  {
-    chain_1 = ReplicaChain(p, _Nt, _beta0, _beta1, record, inverse);
-    chain_2 = ReplicaChain(p, _Nt, _beta0, _beta1, record, inverse);
+    log_data = record;
+    correlations = std::vector<size_t>(Nt, 1);
+    num_swaps = 0;
+    beta_values = std::vector<double>(Nt);
+    exchange_index = 0;
+    double beta_step = Nt > 1 ? (_beta1 - _beta0) / (Nt - 1) : 0;
+    double beta = _beta0;
+    swap_logs = std::vector<size_t>(Nt, 0);
+    cons_logs = std::vector<size_t>(Nt, 0);
+    indices = std::vector<size_t>(Nt);
+    swaps = std::vector<uint32_t>(Nt-1);
+    StateVector init = StateVector(p.vcount(), false);
+    energy_log = std::vector<std::vector<double>>(Nt);
+    magnetization_log = std::vector<std::vector<double>>(Nt);
+
+    std::vector<double> dE(p.vcount(), 0);
+    for (size_t i = 0; i < init.size(); i++) {
+        if (p.rand_double() > 0.5) {
+            init[i] = true;
+        }
+    }
+    double init_ene = p.calculate_dE(dE, init);
+    double beta_value;
+    for (size_t i = 0; i < Nt-1; i++) {
+        swaps[i] = i;
+        indices[i] = i;
+        if (inverse) {
+            beta_value = beta;
+        } else {
+            beta_value = 1 / beta;
+        }
+        beta_values[i] = beta_value;
+        beta += beta_step;
+    }
+    if (inverse) {
+        beta_value = beta;
+    } else {
+        beta_value = 1 / beta;
+    }
+    beta_values[Nt-1] = beta_value;
+    indices[Nt-1] = Nt-1;
 }
 ChainEnsemble::ChainEnsemble(Problem& p,
                              uint32_t _Nt,
@@ -19,44 +58,55 @@ ChainEnsemble::ChainEnsemble(Problem& p,
                              bool record,
                              bool inverse): Nc(_Nc)  {
         chain_1 = ReplicaChain(p, _Nt, temps, corr, record, inverse);
-        chain_2 = ReplicaChain(p, _Nt, temps, corr, record, inverse);                                            
-    };
-void ChainEnsemble::solve(Problem& p, double& ene, StateVector& result, size_t pts) {
-    size_t update_iters = std::ceil(static_cast<double>(pts) / 100);
-    size_t update_cnt = 0;
-    size_t progress_bar = 0;
-    char progress[101];
-    for (size_t i = 0; i < 100; i++)
-        progress[i] = ' ';
-    progress[100] = '\0';
-    printf("%ld\% Complete [%s]", progress_bar, progress);
-    std::fflush(stdout);
-    for (size_t i = 0; i < pts; i++, update_cnt++) {
-        chain_1.do_sweeps(p);
-        chain_2.do_sweeps(p);
-        //perform_icm(p);
-        if (update_cnt == update_iters) {
-            progress[progress_bar] = '#';
-            progress_bar ++;
-            printf("\r%ld%s Complete [%s]", progress_bar,"%", progress);
-        std::fflush(stdout);
-            update_cnt = 0;
+        chain_2 = ReplicaChain(p, _Nt, temps, corr, record, inverse);       
+        log_data = record;
+        correlations = corr;
+        swap_logs = std::vector<size_t>(Nt, 0);
+        cons_logs = std::vector<size_t>(Nt, 0);
+        exchange_index = 0;
+        num_swaps = 0;
+        beta_values = std::vector<double>(Nt);
+        indices = std::vector<size_t>(Nt);
+        swaps = std::vector<uint32_t>(Nt-1);
+        StateVector init = StateVector(p.vcount(), false);
+        std::vector<double> dE(p.vcount(), 0);
+        for (size_t i = 0; i < init.size(); i++) {
+            if (p.rand_double() > 0.5) {
+                init[i] = true;
+            }
         }
-    }
-    progress[99] = '#';
-    printf("\r100%s Complete [%s]\r","%", progress);
-    // std::cout << "Done Solving" << std::endl;
-    double c1_ene, c2_ene;
-    const StateVector  chain_1_sol = chain_1.solution(c1_ene); 
-    const StateVector chain_2_sol = chain_2.solution(c2_ene); 
+        double init_ene = p.calculate_dE(dE, init);
+        double beta_value;
+        energy_log = std::vector<std::vector<double>>(Nt);
+        magnetization_log = std::vector<std::vector<double>>(Nt);
+
+        for (size_t i = 0; i < Nt-1; i++) {
+            swaps[i] = i;
+            indices[i] = i;
+            if (inverse) {
+                beta_value = temps[i];
+            } else {
+                beta_value = 1 / temps[i];
+            }
+            beta_values[i] = beta_value;
+        }
+        if (inverse) {
+            beta_value = temps[Nt-1];
+        } else {
+            beta_value = 1 / temps[Nt-1];
+        }
+        beta_values[Nt-1] = beta_value;
+        indices[Nt-1] = Nt-1;                                     
+        };
+void ChainEnsemble::solve(Problem& p, double& ene, StateVector& result, size_t pts) {
     
-    if (c1_ene < c2_ene) {
-        ene = c1_ene;
-        result = chain_1_sol;
-        return;
-    }
-    ene = c2_ene;
-    result = chain_2_sol;
+    // if (c1_ene < c2_ene) {
+    //     ene = c1_ene;
+    //     result = chain_1_sol;
+    //     return;
+    // }
+    // ene = c2_ene;
+    // result = chain_2_sol;
     return;
 }
 void ChainEnsemble::bfs_icm(Problem& p, size_t seed_val, const std::vector<bool>& xorvals, Replica& r1, Replica& r2) {
