@@ -270,7 +270,7 @@ int main(int argc, char** argv) {
             double new_e1 = energy_values[indices[chain_1_exchange+1]];
             double new_b2 = beta_values[chain_1_exchange];
             double new_e2 = energy_values[indices[chain_1_exchange]];
-            if (std::log(unif(rng)) > log_boltzmann_1 && false) {
+            if (std::log(unif(rng)) > log_boltzmann_1) {
                 bool swap = true;
                 double new_b1 = beta_values[chain_1_exchange+1];
                 double new_b2 = beta_values[chain_1_exchange];
@@ -306,7 +306,7 @@ int main(int argc, char** argv) {
             new_e1 = energy_values[indices[chain_2_exchange+1]];
             new_b2 = beta_values[chain_2_exchange];
             new_e2 = energy_values[indices[chain_2_exchange]];
-            if (std::log(unif(rng)) > log_boltzmann_1  && false) {
+            if (std::log(unif(rng)) > log_boltzmann_1) {
                 bool swap = true;
                 double new_b1 = beta_values[chain_2_exchange+1];
                 double new_b2 = beta_values[chain_2_exchange];

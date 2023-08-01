@@ -24,9 +24,6 @@ class ReplicaChain {
         std::vector<size_t> swap_logs;
         std::vector<size_t> cons_logs;
         bool log_data;
-        void type1_init(Problem& p);
-        void type2_init(Problem& p);
-        void type3_init(Problem& p);
     public:
         // Ctor to uniformly space (inverse) temperatures
         ReplicaChain(Problem& p,
