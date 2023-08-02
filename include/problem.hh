@@ -2,8 +2,6 @@
 #define PROBLEM
 #include <random>
 #include "definitions.hh"
-#include <boost/serialization/vector.hpp>
-#include <boost/serialization/list.hpp>
 class Problem {
     private:
         bool sparse; // if the problem is sparse (in which case the matrix is an edgelist)
@@ -65,6 +63,8 @@ class Problem {
         const std::vector<double>& get_dense_neighbors(uint64_t ind) const {return formulation[ind];}
         bool is_sparse () const {return N;}
         double calculate_dE (std::vector<double>& dE, const StateVector& s) const;
+        const Matrix& get_formulation() const {return formulation;}
+        const SparseMatrix& get_formulation_sparse() const {return formulation_sparse;}
         std::mt19937_64& get_rng() {return rng_engine;};
         // Incremental Isakov step
         void incremental_dE(std::vector<double>& dE, const StateVector& s, uint32_t index) const;

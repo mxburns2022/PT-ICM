@@ -4,14 +4,7 @@
 #include <vector>
 #include <iostream>
 #include "mpi.h"
-struct Parameters {
-    uint64_t burn_in;
-    uint64_t sweeps;
-    uint64_t Nt;
-    uint64_t beta_min;
-    uint64_t beta_max;
-    
-};
+
 template <typename T>
 std::ostream& operator<<(std::ostream& out, std::vector<T> vec){
     out << "[";
