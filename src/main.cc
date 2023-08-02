@@ -9,11 +9,11 @@
 namespace po = boost::program_options;
 int parse_args (int argc, 
                  char** argv,
-                 size_t& seed,
+                 uint64_t& seed,
                  std::string& problem_path,
-                 size_t& Nt,
-                 size_t& pts,
-                 size_t& burn_in,
+                 uint64_t& Nt,
+                 uint64_t& pts,
+                 uint64_t& burn_in,
                  double& T0,
                  double& T1,
                  bool& inverse,
@@ -21,11 +21,11 @@ int parse_args (int argc,
     po::options_description desc("Allowed options");
     desc.add_options()
         ("help", "produce help message")
-        ("seed", po::value<size_t>()->default_value(time(NULL)), "random seed")
+        ("seed", po::value<uint64_t>()->default_value(time(NULL)), "random seed")
         ("problem", po::value<std::string>(), "path to problem file (GSET)")
-        ("burn_in", po::value<size_t>()->default_value(500), "number of MCMC burn-in steps before logging")
-        ("replicas", po::value<size_t>()->default_value(20), "number of independent temperatures to simulate")
-        ("pts", po::value<size_t>()->default_value(2000), "number of parallel tempering steps (one sweep per replica, one replica exchange attempt, one ICM)")
+        ("burn_in", po::value<uint64_t>()->default_value(500), "number of MCMC burn-in steps before logging")
+        ("replicas", po::value<uint64_t>()->default_value(20), "number of independent temperatures to simulate")
+        ("pts", po::value<uint64_t>()->default_value(2000), "number of parallel tempering steps (one sweep per replica, one replica exchange attempt, one ICM)")
         ("temp0", po::value<double>()->default_value(0.1), "Starting temperature")
         ("temp1", po::value<double>()->default_value(1.6), "Ending temperature")
         ("inverse", po::value<bool>()->default_value(false), "Interpret temperatures as inverted")
@@ -37,12 +37,12 @@ int parse_args (int argc,
         std::cout << desc << std::endl;
         return -1;
     }
-    seed = opts["seed"].as<size_t>();
+    seed = opts["seed"].as<uint64_t>();
     problem_path = opts["problem"].as<std::string>();
     std::cout << problem_path << std::endl;
-    Nt = opts["replicas"].as<size_t>();
-    pts = opts["pts"].as<size_t>();
-    burn_in = opts["burn_in"].as<size_t>();
+    Nt = opts["replicas"].as<uint64_t>();
+    pts = opts["pts"].as<uint64_t>();
+    burn_in = opts["burn_in"].as<uint64_t>();
     T0 = opts["temp0"].as<double>();
     T1 = opts["temp1"].as<double>();
     inverse = opts["inverse"].as<bool>();
@@ -51,14 +51,14 @@ int parse_args (int argc,
 
 }
 
-void beta_linspace(double* temps, double T0, double T1, size_t num_temp, bool inverse) {
+void beta_linspace(double* temps, double T0, double T1, uint64_t num_temp, bool inverse) {
     std::cout << inverse << std::endl;
 
     double step = inverse ? (T1 - T0) / (num_temp - 1) : (1 / T1 - 1 / T0) / (num_temp - 1);
     std::cout << step << std::endl;
     double curr_temp = inverse ? T0 : 1 / T0;
     std::cout << curr_temp << std::endl;
-    for (size_t i = 0; i < num_temp; i++) {
+    for (uint64_t i = 0; i < num_temp; i++) {
         if (inverse) {
             temps[i] = 1 / curr_temp;
         } else {
@@ -71,21 +71,23 @@ void beta_linspace(double* temps, double T0, double T1, size_t num_temp, bool in
 int main(int argc, char** argv) {
     MPI_Init(NULL, NULL);
     int world_size, worker_id;
+    MPI_Status stat;
+
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &worker_id);
     // inital values
-    size_t seed;
+    uint64_t seed;
     std::string problem_path;
-    size_t Nt;
-    size_t pts;
-    size_t burn_in;
-    size_t N;
-    size_t M;
+    uint64_t Nt;
+    uint64_t pts;
+    uint64_t burn_in;
+    uint64_t N;
+    uint64_t M;
     double T0;
     double T1;
     bool inverse;
     bool log_data;
-    size_t help_disp = 1;
+    uint64_t help_disp = 1;
     // have worker 0 parse the arguments
     if (worker_id == 0) {
         help_disp = parse_args(argc,
@@ -115,14 +117,14 @@ int main(int argc, char** argv) {
     MPI_Bcast((void*)&inverse, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
     MPI_Bcast((void*)&log_data, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
     
-    size_t replicas_per_process = Nt * 2 / world_size;
-    size_t regular = replicas_per_process * world_size;
-    size_t last_process = replicas_per_process;
+    uint64_t replicas_per_process = Nt * 2 / world_size;
+    uint64_t regular = replicas_per_process * world_size;
+    uint64_t last_process = replicas_per_process;
     if (Nt != regular) {
         last_process += (Nt * 2) - regular; 
     }
     Problem p;
-    size_t local_jobs = worker_id != world_size - 1 ? replicas_per_process : last_process;
+    uint64_t local_jobs = worker_id != world_size - 1 ? replicas_per_process : last_process;
     std::unique_ptr<int[]> replica_workers;
     std::unique_ptr<double[]> beta_values;
     std::unique_ptr<double[]> beta_values_local = std::make_unique<double[]>(local_jobs);
@@ -132,18 +134,19 @@ int main(int argc, char** argv) {
     std::unique_ptr<bool[]> init_state ;
     bool is_sparse;
     std::mt19937 rng;
+
     // Distribute the replicas to each worker
     if (worker_id == 0) {
+    std::cout << "Distributing replicas\n";
         rng = std::mt19937(seed);
         replica_workers = std::make_unique<int[]>(Nt * 2);
-        size_t ind = 0;
-        for (size_t i = 0; i < world_size - 1; i++) {
-            for (size_t j = 0; j < replicas_per_process; j++, ind++) {
-                std::cout << ind << std::endl;
+        uint64_t ind = 0;
+        for (uint64_t i = 0; i < world_size - 1; i++) {
+            for (uint64_t j = 0; j < replicas_per_process; j++, ind++) {
                 replica_workers[ind] = i;
             }
         }
-        for (size_t j = 0; j < last_process; j++, ind++) {
+        for (uint64_t j = 0; j < last_process; j++, ind++) {
             replica_workers[ind] = world_size - 1;
         }
         // Determine the starting beta values for each replica
@@ -153,7 +156,7 @@ int main(int argc, char** argv) {
         // copy to the beta values for worker 0
         std::memcpy(beta_values_local.get(), beta_values.get(), local_jobs * sizeof(double));
         // send local beta values to each other worker
-        for (size_t i = 1; i < world_size - 1; i++) {
+        for (uint64_t i = 1; i < world_size - 1; i++) {
             double* start_pointer = i * replicas_per_process + beta_values.get();
             MPI_Send(start_pointer, replicas_per_process, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
         }
@@ -161,14 +164,14 @@ int main(int argc, char** argv) {
         double* start_pointer = (world_size - 1) * replicas_per_process + beta_values.get();
         MPI_Send(start_pointer, last_process, MPI_DOUBLE, world_size - 1, 0, MPI_COMM_WORLD);
         
+
+        std::cout << "Constructing original problem... ";
+        p = Problem(problem_path, seed, burn_in);
         std::bernoulli_distribution init_gen(0.5);
         init_state = std::make_unique<bool[]>(p.vcount());
-        std::cout << p.vcount() << std::endl;
-        for (size_t i = 0; i < p.vcount(); i++) {
+        for (uint64_t i = 0; i < p.vcount(); i++) {
             init_state[i] = init_gen(rng);
         }
-
-        p = Problem(problem_path, seed, burn_in);
 
         is_sparse = p.is_sparse();
         if (is_sparse) {
@@ -181,9 +184,9 @@ int main(int argc, char** argv) {
         p.serialize(weights.get(), src.get(), dest.get());
         N = p.vcount();
         M = p.ecount();
-        std::cout << N << " " << M << std::endl;
+        std::cout << "Done\n";
     } else {
-        MPI_Recv(beta_values_local.get(), local_jobs, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, NULL);
+        MPI_Recv(beta_values_local.get(), local_jobs, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, &stat);
 
     }
     MPI_Bcast(&is_sparse, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
@@ -206,13 +209,14 @@ int main(int argc, char** argv) {
         MPI_Bcast(weights.get(), N*N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     }
     if (worker_id != 0) {
-
+        std::cout << "Constructing problem copies... ";
         if (is_sparse) {
             std::cout << N << std::endl;
             p = Problem(weights.get(), src.get(), dest.get(), seed, burn_in, N, M);
         } else {
             p = Problem(weights.get(), seed, burn_in, N);
         }
+        std::cout << "Done\n";
         init_state = std::make_unique<bool[]>(p.vcount());
     }
     std::cout << "Variable Count" << p.vcount() << std::endl;
@@ -221,36 +225,38 @@ int main(int argc, char** argv) {
     std::vector<Replica> local_replicas = std::vector<Replica> (local_jobs);
     std::vector<double> dE(p.vcount());
     double init_ene = p.calculate_dE(dE, init); 
-    size_t ind;
+    uint64_t ind = 0;
     for (Replica& r: local_replicas) {
         r = Replica(p, beta_values_local[ind++], init, dE, init_ene);
     }
     std::unique_ptr<double[]> energy_values;
-    std::unique_ptr<size_t[]> chain_1_exchange_order;
-    std::unique_ptr<size_t[]> chain_2_exchange_order;
-    std::unique_ptr<size_t[]> indices;
+    std::unique_ptr<uint64_t[]> chain_1_exchange_order;
+    std::unique_ptr<uint64_t[]> chain_2_exchange_order;
+    std::unique_ptr<uint64_t[]> indices;
     std::uniform_real_distribution<double> unif(0,1);
-    size_t exchange_index = 0;
+    uint64_t exchange_index = 0;
     if (worker_id == 0) {
         energy_values = std::make_unique<double[]> (Nt * 2);
-        chain_1_exchange_order = std::make_unique<size_t[]> (Nt - 1);
-        chain_2_exchange_order = std::make_unique<size_t[]> (Nt - 1);
-        indices = std::make_unique<size_t[]> (Nt * 2);
-        for (size_t i = 0; i < Nt - 1; i++) {
+        chain_1_exchange_order = std::make_unique<uint64_t[]> (Nt - 1);
+        chain_2_exchange_order = std::make_unique<uint64_t[]> (Nt - 1);
+        indices = std::make_unique<uint64_t[]> (Nt * 2);
+        for (uint64_t i = 0; i < Nt - 1; i++) {
             chain_1_exchange_order[i] = i;
             chain_2_exchange_order[i] = i;
         }
-        for (size_t i = 0; i < Nt * 2; i++) {
+        for (uint64_t i = 0; i < Nt * 2; i++) {
             indices[i] = i;
         }
         std::shuffle(chain_1_exchange_order.get(), chain_1_exchange_order.get() + Nt - 1, rng);
         std::shuffle(chain_2_exchange_order.get(), chain_2_exchange_order.get() + Nt - 1, rng);
     }
     std::unique_ptr<double[]> local_energy_values = std::make_unique<double[]> (local_jobs);
-    size_t chain_1_exchange, chain_2_exchange;
+    uint64_t chain_1_exchange, chain_2_exchange;
     // Main MCMC loop
-    for (size_t i = 0; i < pts; i++) {
-        size_t replica_ind = 0;
+    std::cout << "Worker " << worker_id << " entering main loop "<< pts << "\n";
+    for (uint64_t i = 0; i < pts; i++) {
+        uint64_t replica_ind = 0;
+        std::cout << "REE" << std::endl;
         for (Replica& r: local_replicas) {
             r.sweep(p);
             local_energy_values[replica_ind++] = r.get_energy();
@@ -258,10 +264,13 @@ int main(int argc, char** argv) {
         if (worker_id == 0) {
             chain_1_exchange = chain_1_exchange_order[exchange_index];
             chain_2_exchange = Nt + chain_2_exchange_order[exchange_index];
-            for (size_t worker = 1; worker < world_size - 1; worker++) {
-                MPI_Recv(energy_values.get() + replicas_per_process * worker, replicas_per_process, MPI_DOUBLE, worker, 0, MPI_COMM_WORLD, NULL);
+            for (uint64_t worker = 1; worker < world_size - 1; worker++) {
+                MPI_Recv(energy_values.get() + replicas_per_process * worker, replicas_per_process, MPI_DOUBLE, worker, 0, MPI_COMM_WORLD, &stat);
             }
-            MPI_Recv(energy_values.get() + replicas_per_process * (world_size - 1), last_process, MPI_DOUBLE, world_size - 1, 0, MPI_COMM_WORLD, NULL);
+            MPI_Recv(energy_values.get() + replicas_per_process * (world_size - 1), last_process, MPI_DOUBLE, world_size - 1, 0, MPI_COMM_WORLD, &stat);
+            std::memcpy(energy_values.get(), local_energy_values.get(), local_jobs * sizeof(double));
+            std::vector<double> enevals (energy_values.get(), energy_values.get() + Nt*2);
+            // std::cout << enevals << std::endl;
             // Perform PT comparison for chain 1
             double dBeta = beta_values[chain_1_exchange] - beta_values[chain_1_exchange + 1];
             double dE = energy_values[indices[chain_1_exchange]] - energy_values[indices[chain_1_exchange + 1]]; 
@@ -271,6 +280,7 @@ int main(int argc, char** argv) {
             double new_b2 = beta_values[chain_1_exchange];
             double new_e2 = energy_values[indices[chain_1_exchange]];
             if (std::log(unif(rng)) > log_boltzmann_1) {
+                std::cout << "Chain 1 replica exchange\n";
                 bool swap = true;
                 double new_b1 = beta_values[chain_1_exchange+1];
                 double new_b2 = beta_values[chain_1_exchange];
@@ -290,9 +300,12 @@ int main(int argc, char** argv) {
             } else {
                 bool swap = false;
                 MPI_Send(&swap, 1, MPI_CXX_BOOL, replica_workers[chain_1_exchange], 0, MPI_COMM_WORLD);
-                MPI_Send(&swap, 1, MPI_CXX_BOOL, replica_workers[chain_1_exchange+1], 0, MPI_COMM_WORLD);
+
+                if (replica_workers[chain_1_exchange+1] != replica_workers[chain_1_exchange]) {
+                    MPI_Send(&swap, 1, MPI_CXX_BOOL, replica_workers[chain_1_exchange+1], 0, MPI_COMM_WORLD);
+                }
             }
-            for (size_t i = 1; i < world_size; i++) {
+            for (uint64_t i = 1; i < world_size; i++) {
                 bool dummy = false;
                 if (i == replica_workers[chain_1_exchange] || i == replica_workers[chain_1_exchange + 1]) {
                     continue;
@@ -307,6 +320,7 @@ int main(int argc, char** argv) {
             new_b2 = beta_values[chain_2_exchange];
             new_e2 = energy_values[indices[chain_2_exchange]];
             if (std::log(unif(rng)) > log_boltzmann_1) {
+                std::cout << "Chain 2 replica exchange\n";
                 bool swap = true;
                 double new_b1 = beta_values[chain_2_exchange+1];
                 double new_b2 = beta_values[chain_2_exchange];
@@ -328,7 +342,7 @@ int main(int argc, char** argv) {
                 MPI_Send(&swap, 1, MPI_CXX_BOOL, replica_workers[chain_2_exchange], 0, MPI_COMM_WORLD);
                 MPI_Send(&swap, 1, MPI_CXX_BOOL, replica_workers[chain_2_exchange+1], 0, MPI_COMM_WORLD);
             }
-            for (size_t i = 1; i < world_size; i++) {
+            for (uint64_t i = 1; i < world_size; i++) {
                 bool dummy = false;
                 if (i == replica_workers[chain_2_exchange] || i == replica_workers[chain_2_exchange + 1]) {
                     continue;
@@ -343,12 +357,12 @@ int main(int argc, char** argv) {
         } else {
             MPI_Send(local_energy_values.get(), local_jobs, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
             bool exchange = false;
-            MPI_Recv(&exchange, 1, MPI_CXX_BOOL, 0, 0, MPI_COMM_WORLD, NULL);
+            MPI_Recv(&exchange, 1, MPI_CXX_BOOL, 0, 0, MPI_COMM_WORLD, &stat);
             if (exchange) {
                 double old_beta, new_beta;
-                MPI_Recv(&old_beta, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, NULL);
-                MPI_Recv(&new_beta, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, NULL);
-                for (size_t j = 0; j < local_jobs; j++) {
+                MPI_Recv(&old_beta, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, &stat);
+                MPI_Recv(&new_beta, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, &stat);
+                for (uint64_t j = 0; j < local_jobs; j++) {
                     if (beta_values_local[j] == old_beta) {
                         Replica& r = local_replicas[j];
                         r.set_beta(new_beta);
@@ -360,12 +374,12 @@ int main(int argc, char** argv) {
                 }
                 
             }
-            MPI_Recv(&exchange, 1, MPI_CXX_BOOL, 0, 0, MPI_COMM_WORLD, NULL);
+            MPI_Recv(&exchange, 1, MPI_CXX_BOOL, 0, 0, MPI_COMM_WORLD, &stat);
             if (exchange) {
                 double old_beta, new_beta;
-                MPI_Recv(&old_beta, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, NULL);
-                MPI_Recv(&new_beta, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, NULL);
-                for (size_t j = 0; j < local_jobs; j++) {
+                MPI_Recv(&old_beta, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, &stat);
+                MPI_Recv(&new_beta, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, &stat);
+                for (uint64_t j = 0; j < local_jobs; j++) {
                     if (beta_values_local[j] == old_beta) {
                         Replica& r = local_replicas[j];
                         r.set_beta(new_beta);
@@ -381,17 +395,17 @@ int main(int argc, char** argv) {
         MPI_Barrier(MPI_COMM_WORLD);
         
     }
+    std::cout << "Worker " << worker_id << " exiting main loop "<< pts << "\n";
     std::vector<double> local_betas (beta_values_local.get(), beta_values_local.get() + local_jobs);
     std::vector<double> local_ene (local_energy_values.get(), local_energy_values.get() + local_jobs);
     std::stringstream sstr;
     sstr << worker_id << "\n\t" << local_betas << "\n\t" << local_ene << std::endl;
     std::cout << sstr.str();
-
     MPI_Finalize();
     // double final_ene;
     // StateVector solution;
     // chaine.solve(p, final_ene, solution, burn_in + pts);
-    // size_t last_slash = problem_path.rfind("/"); 
+    // uint64_t last_slash = problem_path.rfind("/"); 
     // std::string graphname = problem_path.substr(last_slash+1);
     // // chaine.get_chain1().print_A_swap();
     // std::cout << "graph,energy,cut,flips,swaps,pts,Nt,nodes,seed,beta0,beta1,inverse,log_data" << std::endl <<
@@ -423,16 +437,16 @@ int main(int argc, char** argv) {
     //         fprintf(stderr, "Error opening CSV file\n");
     //         exit(-1);
     //     }
-    //     size_t j = 0;
+    //     uint64_t j = 0;
 
-    //     for (size_t ind = 0; ind < Nt; ind++) {
+    //     for (uint64_t ind = 0; ind < Nt; ind++) {
     //         double sample_size = mag_samples[ind].size();
     //         m_avg = 0.0;
     //         m2_avg = 0.0;
     //         e_avg = 0.0;
     //         e2_avg = 0.0;
     //         double beta = chain1.get_replicas()[chain1.get_indices()[ind]].get_beta();
-    //         for (size_t i = 0; i < sample_size; i++) {
+    //         for (uint64_t i = 0; i < sample_size; i++) {
     //             m_avg += mag_samples.at(ind).at(i);
     //             m2_avg += std::pow(mag_samples.at(ind).at(i), 2.0);
     //             e_avg += ene_samples.at(ind).at(i);

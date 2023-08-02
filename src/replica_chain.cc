@@ -10,15 +10,15 @@ ReplicaChain::ReplicaChain(Problem& p,
                            bool space_inverse): Nt(_Nt),
                                             sweep_counter(0) {
     log_data = _log_data;
-    correlations = std::vector<size_t>(Nt, 1);
+    correlations = std::vector<uint64_t>(Nt, 1);
     num_swaps = 0;
     beta_values = std::vector<double>(Nt);
     exchange_index = 0;
     double beta_step = Nt > 1 ? (beta1 - beta0) / (Nt - 1) : 0;
     double beta = beta0;
-    swap_logs = std::vector<size_t>(Nt, 0);
-    cons_logs = std::vector<size_t>(Nt, 0);
-    indices = std::vector<size_t>(Nt);
+    swap_logs = std::vector<uint64_t>(Nt, 0);
+    cons_logs = std::vector<uint64_t>(Nt, 0);
+    indices = std::vector<uint64_t>(Nt);
     replicas = std::vector<Replica>(Nt);
     swaps = std::vector<uint32_t>(Nt-1);
     StateVector init = StateVector(p.vcount(), false);
@@ -26,14 +26,14 @@ ReplicaChain::ReplicaChain(Problem& p,
     magnetization_log = std::vector<std::vector<double>>(Nt);
 
     std::vector<double> dE(p.vcount(), 0);
-    for (size_t i = 0; i < init.size(); i++) {
+    for (uint64_t i = 0; i < init.size(); i++) {
         if (p.rand_double() > 0.5) {
             init[i] = true;
         }
     }
     double init_ene = p.calculate_dE(dE, init);
     double beta_value;
-    for (size_t i = 0; i < Nt-1; i++) {
+    for (uint64_t i = 0; i < Nt-1; i++) {
         swaps[i] = i;
         indices[i] = i;
         if (space_inverse) {
@@ -58,23 +58,23 @@ ReplicaChain::ReplicaChain(Problem& p,
 ReplicaChain::ReplicaChain(Problem& p,
                            uint32_t _Nt,
                            const std::vector<double>& temperatures,
-                           const std::vector<size_t>& corr,
+                           const std::vector<uint64_t>& corr,
                            bool _log_data,
                            bool inverse): Nt(_Nt), 
                                            sweep_counter(0) {
     log_data = _log_data;
     correlations = corr;
-    swap_logs = std::vector<size_t>(Nt, 0);
-    cons_logs = std::vector<size_t>(Nt, 0);
+    swap_logs = std::vector<uint64_t>(Nt, 0);
+    cons_logs = std::vector<uint64_t>(Nt, 0);
     exchange_index = 0;
     num_swaps = 0;
     beta_values = std::vector<double>(Nt);
-    indices = std::vector<size_t>(Nt);
+    indices = std::vector<uint64_t>(Nt);
     replicas = std::vector<Replica>(Nt);
     swaps = std::vector<uint32_t>(Nt-1);
     StateVector init = StateVector(p.vcount(), false);
     std::vector<double> dE(p.vcount(), 0);
-    for (size_t i = 0; i < init.size(); i++) {
+    for (uint64_t i = 0; i < init.size(); i++) {
         if (p.rand_double() > 0.5) {
             init[i] = true;
         }
@@ -84,7 +84,7 @@ ReplicaChain::ReplicaChain(Problem& p,
     energy_log = std::vector<std::vector<double>>(Nt);
     magnetization_log = std::vector<std::vector<double>>(Nt);
 
-    for (size_t i = 0; i < Nt-1; i++) {
+    for (uint64_t i = 0; i < Nt-1; i++) {
         swaps[i] = i;
         indices[i] = i;
         if (inverse) {
@@ -104,7 +104,7 @@ ReplicaChain::ReplicaChain(Problem& p,
     indices[Nt-1] = Nt-1;
     replicas[Nt-1] = Replica(p, beta_values[Nt-1], init, dE, init_ene);                        
 }
-void ReplicaChain::allocate_logs(size_t sweeps) {
+void ReplicaChain::allocate_logs(uint64_t sweeps) {
     if (!log_data) {
         return;
     }
@@ -123,18 +123,18 @@ void ReplicaChain::do_sweeps (Problem& p) {
         std::shuffle(swaps.begin(), swaps.end(), p.get_rng());
     }
     sweep_counter++;
-    for (size_t ind : indices) {
+    for (uint64_t ind : indices) {
             Replica& r = replicas[ind];
             double start_ene = r.get_energy();
-            for (size_t local_moves = 0; local_moves < correlations[ind]; local_moves++)
+            for (uint64_t local_moves = 0; local_moves < correlations[ind]; local_moves++)
             {
                 r.sweep(p);
             }
             // std::cout << ind << " " << r.get_beta() << " " << r.get_energy() << std::endl;
     }
-    size_t i = swaps[exchange_index++];
-    size_t index_low = indices[i];
-    size_t index_high = indices[i+1];
+    uint64_t i = swaps[exchange_index++];
+    uint64_t index_low = indices[i];
+    uint64_t index_high = indices[i+1];
     Replica& low = replicas[indices[i]];
     Replica& high = replicas[indices[i+1]];
     cons_logs[i]+=1;
@@ -159,7 +159,7 @@ void ReplicaChain::do_sweeps (Problem& p) {
     
     }
     if (log_data && sweep_counter > p.get_burn_in()) {
-        for (size_t ind = 0; ind < Nt; ind++) {
+        for (uint64_t ind = 0; ind < Nt; ind++) {
             Replica& r = replicas[indices[ind]];
             double m = 0.0;
             for (bool b: r.get_state()) {
@@ -195,11 +195,11 @@ void ReplicaChain::replica_exchanges (Problem& p) {
         exchange_index = 0;
         std::shuffle(swaps.begin(), swaps.end(), p.get_rng());
     }
-    // size_t i = swaps[exchange_index];
-    for (size_t i : swaps) {
+    // uint64_t i = swaps[exchange_index];
+    for (uint64_t i : swaps) {
 
-        size_t index_low = indices[i];
-        size_t index_high = indices[i+1];
+        uint64_t index_low = indices[i];
+        uint64_t index_high = indices[i+1];
         Replica& low = replicas[indices[i]];
         Replica& high = replicas[indices[i+1]];
         if (re_consider(p, low, high)) {
@@ -233,11 +233,11 @@ const StateVector ReplicaChain::solution(double& ene) {
     return result;
 }
 void ReplicaChain::solve(Problem& p,
-                         size_t pts,
+                         uint64_t pts,
                          double& ene,
                          StateVector& result,
                          Initialization init_type) {
-    for (size_t i = 0; i < pts; i ++) {
+    for (uint64_t i = 0; i < pts; i ++) {
         do_sweeps(p);
     }
     ene = DBL_MAX;

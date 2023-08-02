@@ -2,7 +2,7 @@
 #include <float.h>
 
 void Replica::sweep (Problem& p) {
-    for (size_t i = 0; i < p.vcount(); i++) {
+    for (uint64_t i = 0; i < p.vcount(); i++) {
         if (mh_consider(p, i)) {
             mh_accept(p, i);
         }

@@ -14,21 +14,21 @@ class Problem {
         uint64_t seed;
         std::mt19937_64 rng_engine; // Mersenne Twister random engine for RNG
         std::uniform_real_distribution<double> unif;
-        size_t burn_in; // number of burn-in steps before sampling
+        uint64_t burn_in; // number of burn-in steps before sampling
     public:
-        Problem(std::string path, uint64_t seed = 0, size_t _burn_in = UINT64_MAX);
+        Problem(std::string path, uint64_t seed = 0, uint64_t _burn_in = UINT64_MAX);
 
         Problem(double* _formulation, 
-                size_t _seed, 
-                size_t _burn_in, 
-                size_t _N): N(_N),
+                uint64_t _seed, 
+                uint64_t _burn_in, 
+                uint64_t _N): N(_N),
                            seed(_seed),
                            rng_engine(_seed),
                            unif(0,1),
                            burn_in(_burn_in) {
                     sparse = false;
                     formulation = std::vector<std::vector<double>>(_N);
-                    for (size_t i = 0; i < _N; i++) {
+                    for (uint64_t i = 0; i < _N; i++) {
                         double* currptr = _formulation + i * N;
                         formulation[i] = std::vector<double> (currptr, currptr + N);
                     }
@@ -36,10 +36,10 @@ class Problem {
         Problem(double* weights, 
                 int* src,
                 int* dest,
-                size_t _seed, 
-                size_t _burn_in, 
-                size_t _N,
-                size_t _M): N(_N),
+                uint64_t _seed, 
+                uint64_t _burn_in, 
+                uint64_t _N,
+                uint64_t _M): N(_N),
                             M(_M),
                             seed(_seed),
                             rng_engine(_seed),
@@ -47,10 +47,10 @@ class Problem {
                             burn_in(_burn_in) {
             sparse = true;
             formulation_sparse = SparseMatrix(N);
-            for (size_t i = 0; i < M; i++) {
-                Edge e1 = {static_cast<size_t>(dest[i]), weights[i]};
+            for (uint64_t i = 0; i < M; i++) {
+                Edge e1 = {static_cast<uint64_t>(dest[i]), weights[i]};
                 formulation_sparse[src[i]].push_back(e1);
-                Edge e2 = {static_cast<size_t>(src[i]), weights[i]};
+                Edge e2 = {static_cast<uint64_t>(src[i]), weights[i]};
                 formulation_sparse[dest[i]].push_back(e2);
             }
         };
@@ -60,9 +60,9 @@ class Problem {
         uint64_t vcount () const {return N;};
         uint64_t ecount () const {return M;};
         double rand_double () {return unif(rng_engine);}
-        size_t get_burn_in() const {return burn_in;}
-        const std::list<Edge>& get_sparse_neighbors(size_t ind) const {return formulation_sparse[ind];}
-        const std::vector<double>& get_dense_neighbors(size_t ind) const {return formulation[ind];}
+        uint64_t get_burn_in() const {return burn_in;}
+        const std::list<Edge>& get_sparse_neighbors(uint64_t ind) const {return formulation_sparse[ind];}
+        const std::vector<double>& get_dense_neighbors(uint64_t ind) const {return formulation[ind];}
         bool is_sparse () const {return N;}
         double calculate_dE (std::vector<double>& dE, const StateVector& s) const;
         std::mt19937_64& get_rng() {return rng_engine;};

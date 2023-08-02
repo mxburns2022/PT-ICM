@@ -9,7 +9,7 @@ class Replica {
         uint32_t flips; // Number of flips (optional counter)
         double energy; // Current configuration energy
         double beta; // Inverse temperature of this replica
-        size_t offset; // 
+        uint64_t offset; // 
         double best_ene;
         StateVector best_state;
         // Compare the boltzmann exponent with a log uniform random number
@@ -27,7 +27,7 @@ class Replica {
         inline void set_energy(double new_ene) {energy = new_ene;}
         inline const StateVector& get_state() const {return state;}
         inline StateVector& get_state() {return state;}
-        inline size_t get_flips() const {return flips;}
+        inline uint64_t get_flips() const {return flips;}
         inline void set_state( const StateVector& new_state) { state = new_state;}
         inline void set_dE( std::vector<double> new_dE) { dE = new_dE;}
         inline void set_ene(double new_ene) { energy = new_ene;}

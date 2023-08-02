@@ -47,7 +47,7 @@ const std::vector<double> cae_test = {
     0.502979
 };
 // The correlation time for each temperature in the Canonical ensemble (in MCMC sweeps)
-const std::vector<size_t> canonical_correlation_sweeps = {
+const std::vector<uint64_t> canonical_correlation_sweeps = {
     3,
     3,
     3,
@@ -68,7 +68,7 @@ const std::vector<size_t> canonical_correlation_sweeps = {
     4,
     3
 };
-const std::vector<size_t> single_correlation_sweeps = {
+const std::vector<uint64_t> single_correlation_sweeps = {
     1,
     1,
     1,

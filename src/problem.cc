@@ -2,7 +2,7 @@
 
 void Problem::serialize(double* weights, int* src, int* dest) {
     if (sparse) {
-        size_t ind = 0;
+        uint64_t ind = 0;
         int srcnode = 0;
         for (auto& i : formulation_sparse) {
             for (Edge e: i) {
@@ -32,7 +32,7 @@ double Problem::calculate_dE (std::vector<double>& dE, const StateVector& s) con
     double ene_term;
     assert(sign(false) == -1);
     assert(sign(true) == 1); 
-    for (size_t i = 0; i < N; i++) {
+    for (uint64_t i = 0; i < N; i++) {
         int ival = sign(s[i]);
         if (sparse) {
             const std::list<Edge>& iedges = formulation_sparse.at(i);
@@ -43,7 +43,7 @@ double Problem::calculate_dE (std::vector<double>& dE, const StateVector& s) con
             }
         } else {
             const std::vector<double>& iedges = formulation.at(i);
-            for (size_t j = 0; j < N; j++) {
+            for (uint64_t j = 0; j < N; j++) {
                 if (i == j) {
                     continue;
                 }
@@ -56,7 +56,7 @@ double Problem::calculate_dE (std::vector<double>& dE, const StateVector& s) con
 #ifndef NDEBUG
     StateVector state = s;
 
-    for (size_t i = 0; i < N; i++) {
+    for (uint64_t i = 0; i < N; i++) {
         state[i] = !state[i];
         double ene_new = energy(state);
         double actual_de = ene_new - ene;
@@ -67,11 +67,11 @@ double Problem::calculate_dE (std::vector<double>& dE, const StateVector& s) con
         state[i] = !state[i];
     } 
     std::vector<double> temp = dE;
-    for (size_t i = 0; i < N; i++) {
+    for (uint64_t i = 0; i < N; i++) {
         double temp_ene = ene + dE[i];
         incremental_dE(dE, state, i);
         state[i] = !state[i];
-        for (size_t j = 0; j < N; j++) {
+        for (uint64_t j = 0; j < N; j++) {
             if (j == i) {
                 continue;
             }
@@ -92,7 +92,7 @@ double Problem::calculate_dE (std::vector<double>& dE, const StateVector& s) con
 };
 double Problem::energy (const StateVector& s) const {
     double ene = 0.0;
-    for (size_t i = 0; i < N; i++) {
+    for (uint64_t i = 0; i < N; i++) {
         int8_t ival = sign(s[i]);
         if (sparse) {
             const std::list<Edge>& iedges = formulation_sparse.at(i);
@@ -101,7 +101,7 @@ double Problem::energy (const StateVector& s) const {
             }
         } else {
             const std::vector<double>& iedges = formulation.at(i);
-            for (size_t j = i+1; j < N; j++) {
+            for (uint64_t j = i+1; j < N; j++) {
                 ene += ival * sign(s[j]) * iedges.at(j);
             }
         }
@@ -110,7 +110,7 @@ double Problem::energy (const StateVector& s) const {
 };
 double Problem::maxcut(const StateVector& s) const {
     double cut = 0.0;
-    for (size_t i = 0; i < N; i++) {
+    for (uint64_t i = 0; i < N; i++) {
         int8_t ival = s[i];
         if (sparse) {
             const std::list<Edge>& iedges = formulation_sparse.at(i);
@@ -119,7 +119,7 @@ double Problem::maxcut(const StateVector& s) const {
             }
         } else {
             const std::vector<double>& iedges = formulation.at(i);
-            for (size_t j = i+1; j < N; j++) {
+            for (uint64_t j = i+1; j < N; j++) {
                 cut += ival != s[j] ? iedges[j]: 0;
             }
         }
@@ -139,7 +139,7 @@ void Problem::incremental_dE(std::vector<double>& dE, const StateVector& s, uint
         }
     } else {
         const std::vector<double>& iedges = formulation.at(index);
-        for (size_t j = 0; j < N; j++) {
+        for (uint64_t j = 0; j < N; j++) {
             if (j == index) {
                 continue;
             }
@@ -154,7 +154,7 @@ Problem::Problem(std::string path, uint64_t seed, uint64_t _burn_in): rng_engine
 
     assert(infile.is_open());
     infile >> N >> M; // Read nodes and edges
-    size_t u, v;
+    uint64_t u, v;
     double w;
     // Sparse if less than 10% of possible edges exist
     sparse = (static_cast<double>(M) / (N*(N-1) / 2)) < 0.1;
@@ -162,7 +162,7 @@ Problem::Problem(std::string path, uint64_t seed, uint64_t _burn_in): rng_engine
         formulation_sparse = SparseMatrix(N);
     } else {
         formulation = Matrix(N);
-        for (size_t i = 0; i < N; i++) {
+        for (uint64_t i = 0; i < N; i++) {
             formulation[i] = std::vector<double>(N, 0.0);
         }
     }

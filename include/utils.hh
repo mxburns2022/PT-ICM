@@ -6,8 +6,8 @@
 struct Histogram {
     double binwidth;
     double start_value;
-    std::vector<size_t> hist;
+    std::vector<uint64_t> hist;
 };
-std::vector<double> get_cae(Problem& p, size_t Nt, size_t trials);
+std::vector<double> get_cae(Problem& p, uint64_t Nt, uint64_t trials);
 
 #endif
