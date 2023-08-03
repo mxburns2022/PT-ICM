@@ -12,42 +12,105 @@ int parse_args (int argc,
                  char** argv,
                  std::string& problem_path,
                  Parameters& params) {
-    po::options_description desc("Allowed options");
+//     po::options_description desc("Allowed options");
     params.inverse = false;
     params.log_data = false;
     params.icm = false;
-    desc.add_options()
-        ("help,h", "produce help message")
-        ("seed,s", po::value<uint64_t>()->default_value(time(NULL)), "random seed")
-        ("problem,p", po::value<std::string>(), "path to problem file (GSET)")
-        ("burn_in,b", po::value<uint64_t>()->default_value(500), "number of MCMC burn-in steps before logging")
-        ("replicas,r", po::value<uint64_t>()->default_value(20), "number of independent temperatures to simulate")
-        ("pts", po::value<uint64_t>()->default_value(2000), "number of parallel tempering steps (one sweep per replica, one replica exchange attempt, one ICM)")
-        ("temp0,T0", po::value<double>()->default_value(1.92), "Starting temperature")
-        ("temp1,T1", po::value<double>()->default_value(2.6903), "Ending temperature")
-        ("inverse,i", po::bool_switch(&params.inverse), "Interpret temperatures as inverted")
-        ("log", po::bool_switch(&params.log_data), "Log data and calculate observables (u and c)")
-        ("icm", po::bool_switch(&params.icm), "Enable isoenergetic cluster moves (ICM)")
-        ("verbose", po::value<uint32_t>()->default_value(0), "Verbosity level (0 for minimal messages, 1 for periodic updates, 2 for debugging)")
-    ;
+    params.Nt = 20;
+    params.seed = time(NULL);
+    params.burn_in = 500;
+    params.pts = 1000;
+    params.T0 = 1.92;
+    params.T1 = 2.6903;
+    params.verbosity = 0;
+//      desc.add_options()
+//         ("help,h", "produce help message")
+//         ("seed,s", po::value<uint64_t>()->default_value(time(NULL)), "random seed")
+// //         ("problem,p", po::value<std::string>(), "path to problem file (GSET)")
+//         ("burn_in,b", po::value<uint64_t>()->default_value(500), "number of MCMC burn-in steps before logging")
+//         ("replicas,r", po::value<uint64_t>()->default_value(20), "number of independent temperatures to simulate")
+//         ("pts", po::value<uint64_t>()->default_value(2000), "number of parallel tempering steps (one sweep per replica, one replica exchange attempt, one ICM)")
+//         ("temp0,T0", po::value<double>()->default_value(1.92), "Starting temperature")
+//         ("temp1,T1", po::value<double>()->default_value(2.6903), "Ending temperature")
+//         ("inverse,i", po::bool_switch(&params.inverse), "Interpret temperatures as inverted")
+//         ("log", po::bool_switch(&params.log_data), "Log data and calculate observables (u and c)")
+//         ("icm", po::bool_switch(&params.icm), "Enable isoenergetic cluster moves (ICM)")
+//         ("verbose", po::value<uint32_t>()->default_value(0), "Verbosity level (0 for minimal messages, 1 for periodic updates, 2 for debugging)")
+//     ;
+    for (int i = 0; i < argc; i++) {
+        std::string param = argv[i];
+        if (param == "--help" || param == "-h") {
+            assert(i < argc - 1);
+            params.pts = std::atol(argv[++i]);
+            
+        } else 
+        if (param == "--seed" || param == "-s") {
+            assert(i < argc - 1);
+            params.seed = std::atol(argv[++i]);
+            
+        } else 
+        if (param == "--problem" || param == "-p") {
+            assert(i < argc - 1);
+            problem_path = argv[++i];
+            
+        } else 
+        if (param == "--burn_in" || param == "-b") {
+            assert(i < argc - 1);
+            params.burn_in = std::atol(argv[++i]);
+            
+        } else 
+        if (param == "--replicas" || param == "-r") {
+            assert(i < argc - 1);
+            params.Nt = std::atol(argv[++i]);
+            
+        } else 
+        if (param == "--pts") {
+            assert(i < argc - 1);
+            params.pts = std::atol(argv[++i]);
+        } else 
+        if (param == "--temp0" || param == "-T0") {
+            assert(i < argc - 1);
+            params.T0 = std::atof(argv[++i]);
+            
+        } else 
+        if (param == "--temp1" || param == "-T1") {
+            assert(i < argc - 1);
+            params.T1 = std::atof(argv[++i]);
+            
+        } else 
+        if (param == "--inverse") {
+            params.inverse = true;
+        } else 
+        if (param == "--log") {
+            params.log_data = true;
+        } else 
+        if (param == "--icm") {
+            params.icm = true;
+        } else 
+        if (param == "--verbose") {
+            assert(i < argc - 1);
+            params.verbosity = std::atol(argv[++i]);
+        } 
+    }
+//    
     
 
-    po::variables_map opts;
-    po::store(po::parse_command_line(argc, argv, desc), opts);
-    if (opts.count("help")) {
-        std::cout << desc << std::endl;
-        return -1;
-    }
-    problem_path = opts["problem"].as<std::string>();
-    params.seed = opts["seed"].as<uint64_t>();
-    params.Nt = opts["replicas"].as<uint64_t>();
-    params.pts = opts["pts"].as<uint64_t>();
-    params.burn_in = opts["burn_in"].as<uint64_t>();
-    params.T0 = opts["temp0"].as<double>();
-    params.T1 = opts["temp1"].as<double>();
-    params.verbosity = opts["verbose"].as<uint32_t>();
-    params.icm = opts["icm"].as<bool>();
-    std::cout << params.icm << std::endl;
+//     po::variables_map opts;
+//     po::store(po::parse_command_line(argc, argv, desc), opts);
+//     if (opts.count("help")) {
+//         std::cout << desc << std::endl;
+//         return -1;
+//     }
+// //     problem_path = opts["problem"].as<std::string>();
+//     params.seed = opts["seed"].as<uint64_t>();
+//     params.Nt = opts["replicas"].as<uint64_t>();
+//     params.pts = opts["pts"].as<uint64_t>();
+//     params.burn_in = opts["burn_in"].as<uint64_t>();
+//     params.T0 = opts["temp0"].as<double>();
+//     params.T1 = opts["temp1"].as<double>();
+//     params.verbosity = opts["verbose"].as<uint32_t>();
+//     params.icm = opts["icm"].as<bool>();
+//     std::cout << params.icm << std::endl;
     return 0;
 
 }

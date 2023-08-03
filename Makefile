@@ -4,7 +4,7 @@ CXX = mpic++
 CXXFLAGS = -std=c++17 -O3 -Wall -funroll-loops  -DNDEBUG
 DEBUGFLAGS = -std=c++17 -g -pg -Wall -funroll-loops -DNDEBUG
 INCLUDE_TARGETS=-Iinclude/ -I./ -I/opt/homebrew/opt/boost/include/
-LIBS=-L/opt/homebrew/opt/boost/lib -lboost_program_options
+LIBS=-L/software/boost/1.78.0/b1/lib/ -lboost_program_options
 # GSET=/scratch/mhuang_lab/ISING_MACHINES/GSET/tiny_new/G281
 # BEST=28
 # GSET=/scratch/mhuang_lab/ISING_MACHINES/GSET/K_graphs/K16384
@@ -33,22 +33,14 @@ all : $(TARGET)
 bin/*.o  : include/*.hh
 
 $(TARGET) : $(OBJ)
-	module unload gcc; \
-	module load gcc/7.3.0; \
 	$(CXX) $(CXXFLAGS) $(INCLUDE_TARGETS) -o $@ $^ $(LIBS)
 
 bin/%.o : src/%.cc
-	module unload gcc; \
-	module load gcc/7.3.0; \
 	$(CXX) $(CXXFLAGS) $(INCLUDE_TARGETS) $(MACROS) -o $@ -c $< $(LIBS)
 run: $(TARGET)
-	module unload gcc; \
-	module load gcc/7.3.0; \
 	./$(TARGET) $(GRAPH)
 debug: CXXFLAGS=$(DEBUGFLAGS)
 debug: $(OBJ)
-	module unload gcc; \
-	module load gcc/7.3.0; \
 	$(CXX) $(INCLUDE_TARGETS) $(CXXFLAGS) -o $@ $^  $(LIBS)
 
 clean :
