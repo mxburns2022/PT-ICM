@@ -17,6 +17,21 @@ std::ostream& operator<<(std::ostream& out, StateVector vec){
     out << "]";
     return out;
 };
+std::ostream& operator<<(std::ostream& out, std::list<Edge> vec){
+    out << "[";
+    size_t size = vec.size();
+    if (size > 0) {
+        size_t ind = 0;
+        for (Edge& e: vec) {
+            out << "(" << e.dest << ", " << e.weight << ")";
+            if (++ind < size) {
+                out << ", ";
+            }
+        }
+    }
+    out << "]";
+    return out;
+};
 std::ostream& operator<<(std::ostream& out, std::vector<uint8_t> vec){
     out << "[";
     if (vec.size() > 0) {

@@ -18,6 +18,22 @@ std::ostream& operator<<(std::ostream& out, std::vector<T> vec){
     out << "]";
     return out;
 };
+template <typename T>
+std::ostream& operator<<(std::ostream& out, std::list<T> vec){
+        out << "[";
+    size_t size = vec.size();
+    if (size > 0) {
+        size_t ind = 0;
+        for (T& e: vec) {
+            out << e;
+            if (++ind < size) {
+                out << ", ";
+            }
+        }
+    }
+    out << "]";
+    return out;
+};
 struct Edge {
     uint64_t dest;
     double weight;

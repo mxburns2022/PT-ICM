@@ -12,6 +12,7 @@ class Problem {
         uint64_t seed;
         std::mt19937_64 rng_engine; // Mersenne Twister random engine for RNG
         std::uniform_real_distribution<double> unif;
+        double characteristic_scale;
         uint64_t burn_in; // number of burn-in steps before sampling
     public:
         Problem(std::string path, uint64_t seed = 0, uint64_t _burn_in = UINT64_MAX);
@@ -54,6 +55,8 @@ class Problem {
         };
         Problem() {};
         double energy (const StateVector& s) const;
+        double energy (bool* s) const;
+        double get_char_scale () const {return characteristic_scale;};
         double maxcut (const StateVector& s) const;
         uint64_t vcount () const {return N;};
         uint64_t ecount () const {return M;};
@@ -73,6 +76,7 @@ class Problem {
             sparse = other.sparse;
             formulation = other.formulation;
             formulation_sparse = other.formulation_sparse;
+            characteristic_scale = other.characteristic_scale;
             N = other.N;
             M = other.M;
             seed = other.seed;

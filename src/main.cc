@@ -13,6 +13,9 @@ int parse_args (int argc,
                  std::string& problem_path,
                  Parameters& params) {
     po::options_description desc("Allowed options");
+    params.inverse = false;
+    params.log_data = false;
+    params.icm = false;
     desc.add_options()
         ("help,h", "produce help message")
         ("seed,s", po::value<uint64_t>()->default_value(time(NULL)), "random seed")
@@ -22,10 +25,13 @@ int parse_args (int argc,
         ("pts", po::value<uint64_t>()->default_value(2000), "number of parallel tempering steps (one sweep per replica, one replica exchange attempt, one ICM)")
         ("temp0,T0", po::value<double>()->default_value(1.92), "Starting temperature")
         ("temp1,T1", po::value<double>()->default_value(2.6903), "Ending temperature")
-        ("inverse,i", po::bool_switch(&params.inverse)->default_value(true), "Interpret temperatures as inverted")
-        ("log", po::bool_switch(&params.log_data)->default_value(false), "Log data and calculate observables (u and c)")
+        ("inverse,i", po::bool_switch(&params.inverse), "Interpret temperatures as inverted")
+        ("log", po::bool_switch(&params.log_data), "Log data and calculate observables (u and c)")
+        ("icm", po::bool_switch(&params.icm), "Enable isoenergetic cluster moves (ICM)")
         ("verbose", po::value<uint32_t>()->default_value(0), "Verbosity level (0 for minimal messages, 1 for periodic updates, 2 for debugging)")
     ;
+    
+
     po::variables_map opts;
     po::store(po::parse_command_line(argc, argv, desc), opts);
     if (opts.count("help")) {
@@ -40,6 +46,8 @@ int parse_args (int argc,
     params.T0 = opts["temp0"].as<double>();
     params.T1 = opts["temp1"].as<double>();
     params.verbosity = opts["verbose"].as<uint32_t>();
+    params.icm = opts["icm"].as<bool>();
+    std::cout << params.icm << std::endl;
     return 0;
 
 }

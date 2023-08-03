@@ -17,11 +17,15 @@ struct Parameters {
     uint64_t burn_in;
     double T0;
     double T1;
+    double cutoff;
     bool inverse;
     bool log_data;
+    bool icm;
     uint32_t verbosity;
 };
-
+std::vector<double> get_cae(Problem& p, uint64_t Nt, uint64_t trials);
+std::ostream& operator<<(std::ostream& out, std::vector<uint8_t> vec);
+std::ostream& operator<<(std::ostream& out, std::list<Edge> vec);
 struct PTWorker {
     int wid; // MPI worker rank
     int numw; // number of MPI workers
@@ -32,6 +36,8 @@ struct PTWorker {
     // Fields used only by maanger (id = 0)
     double* beta_values; // vector storing all beta values (sorted high to low)
     uint64_t swaps;
+    uint32_t Nc;
+    double characteristic_scale; // cutoff temperature for ICM
     double* energy_values_global;  // energy values from all replicas (updated each iteration)
     uint32_t* chain_1_exchange_order; // Sequence from 1...M-1 for pair exchanges for each chain (shuffled)
     uint32_t* chain_2_exchange_order;

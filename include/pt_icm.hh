@@ -9,7 +9,10 @@
 #include <cassert>
 #include <sstream>
 #include <boost/dynamic_bitset.hpp>
-#include "chain_ensemble.hh"
+#include "problem.hh"
+#include "mpi_defs.hh"
+#include "replica.hh"
+#include "replica_chain.hh"
 #ifndef PT_ICM
 #define PT_ICM
 inline
@@ -25,6 +28,9 @@ int sign(bool var) {
  * For optimized operation, Isakov-style optimizations will be added
 */
 
-std::ostream& operator<<(std::ostream& out, ReplicaChain& rc);
-
+void bfs_icm(Problem& p, int64_t seed_val, bool* state_1, bool* state_2);
+int64_t xor_icm (PTWorker& w, bool* state_1, bool* state_2);
+Replica& get_replica(PTWorker& w, double beta, uint8_t chain);
+void icm (PTWorker& w, size_t target_replica);
+void check_icm (PTWorker& w);
 #endif

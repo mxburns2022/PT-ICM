@@ -1,19 +1,31 @@
 #include "mpi_defs.hh"
-
+#include "pt_icm.hh"
+#include <stack>
+#define LINECHECK {printf("CHECK %d\n", __LINE__);\
+                   fflush(stdout);}
 MPI_Status stat;
 void beta_linspace(double* temps, double T0, double T1, uint64_t num_temp, bool inverse) {
-    double step = inverse ? (T1 - T0) / (num_temp - 1) : (1 / T1 - 1 / T0) / (num_temp - 1);
-    double curr_temp = inverse ? T0 : 1 / T0;
+    double step, curr_temp;
+    if (inverse) {
+        step = T1 < T0 ? (T0 - T1) / (num_temp - 1) : (T1 - T0) / (num_temp - 1);
+        curr_temp = T1 < T0 ? T1 : T0;
+    } else {
+        step = T1 < T0 ? (1 / T1 - 1 / T0) / (num_temp - 1) : (1 / T0 - 1 / T1) / (num_temp - 1);
+        curr_temp = T1 < T0 ? 1/T0 : 1/T1;
+    }
     for (uint64_t i = 0; i < num_temp; i++) {
         temps[i] = curr_temp;
         curr_temp += step;
     }
+    // std::sort(temps, temps+num_temp); // ensure ordered low to high
 }
 
 void create_datatype(MPI_Datatype& param_type) {
     // Create a datatype to store parameter information
     const int nitems=2;
     int          param_blocklengths[] = {1,
+                                         1,
+                                         1,
                                          1,
                                          1,
                                          1,
@@ -29,10 +41,12 @@ void create_datatype(MPI_Datatype& param_type) {
                                   MPI_UNSIGNED, // verbosity
                                   MPI_DOUBLE,        // T0
                                   MPI_DOUBLE,        // T1
+                                  MPI_DOUBLE,        // cutoff
                                   MPI_CXX_BOOL,      // inverse
-                                  MPI_CXX_BOOL      // log_data
+                                  MPI_CXX_BOOL,      // log_data
+                                  MPI_CXX_BOOL      // icm
                            };
-    MPI_Aint     param_offsets[9];
+    MPI_Aint     param_offsets[11];
     uint32_t runner = 0;
     param_offsets[runner++] = offsetof(Parameters, seed);
     param_offsets[runner++] = offsetof(Parameters, Nt);
@@ -41,8 +55,10 @@ void create_datatype(MPI_Datatype& param_type) {
     param_offsets[runner++] = offsetof(Parameters, verbosity);
     param_offsets[runner++] = offsetof(Parameters, T0);
     param_offsets[runner++] = offsetof(Parameters, T1);
+    param_offsets[runner++] = offsetof(Parameters, cutoff);
     param_offsets[runner++] = offsetof(Parameters, inverse);
     param_offsets[runner++] = offsetof(Parameters, log_data);
+    param_offsets[runner++] = offsetof(Parameters, icm);
     MPI_Type_create_struct(runner,
                            param_blocklengths,
                            param_offsets,
@@ -77,6 +93,13 @@ void initialize_temperatures(PTWorker& w) {
         // Determine the starting beta values for each replica
         w.beta_values = new double[par.Nt * 2];
         beta_linspace(w.beta_values, w.params.T0, w.params.T1, par.Nt, w.params.inverse);
+        w.Nc = 0;
+        for (size_t i = 0; i < par.Nt; i++) {
+            if (w.beta_values[i] > w.characteristic_scale) {
+                break;
+            }
+            w.Nc ++;
+        }
         std::memcpy(w.beta_values + par.Nt, w.beta_values, par.Nt * sizeof(double));
         // copy to the beta values for worker 0
         std::memcpy(w.chain_index_local, w.chain_index_global, w.loc_r * sizeof(uint8_t));
@@ -102,6 +125,8 @@ void initialize_temperatures(PTWorker& w) {
         MPI_Recv(w.chain_index_local, w.loc_r, MPI_UNSIGNED_CHAR, 0, 0, MPI_COMM_WORLD, &w.stat);
         // std::cout << w.wid << " chain indices: " <<std::vector<uint8_t> (w.chain_index_local, w.chain_index_local + w.loc_r) << std::endl;
     }
+    MPI_Bcast(&w.Nc, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&w.params.icm, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
 };
 void read_problem(PTWorker& w, std::string problem_path) {
     size_t M, N;
@@ -115,6 +140,7 @@ void read_problem(PTWorker& w, std::string problem_path) {
         p = Problem(problem_path,
                     w.params.seed, 
                     w.params.burn_in);
+        w.characteristic_scale = p.get_char_scale();
         N = p.vcount();
         M = p.ecount();
         is_sparse = p.is_sparse();
@@ -223,6 +249,8 @@ void gather_best_energy_values(PTWorker& w, double& best_ene_global, StateVector
             best_ene_local = r_ene;
             state = r.get_best_state();
         }
+        std::cout << ind << " " << r_ene << " " << r.get_beta() << std::endl;
+        ind ++;
     }
     std::unique_ptr<bool[]> state_temp = std::make_unique<bool[]>(w.p.vcount());
     if (w.wid == 0) {
@@ -435,6 +463,8 @@ void check_correct_beta_values(PTWorker& w) {
     }
 
 }
+
+
 void solve(PTWorker& w, std::string& problem_path) {
     MPI_Datatype parameter_type;
     create_datatype(parameter_type);
@@ -450,14 +480,16 @@ void solve(PTWorker& w, std::string& problem_path) {
     }
     // local problem declaration
     w.loc_r = w.wid != w.numw - 1 ? w.worker_r : w.last_r;
-    initialize_temperatures(w);
     read_problem(w, problem_path);
+    initialize_temperatures(w);
     initialize_replicas(w);
     initialize_replica_exchanges(w);
     //check_correct_beta_values(w);
     std::cout << "Worker " << w.wid << " entering main loop\n";
+    std::cout << w.wid << " " << w.Nc << " " << w.params.icm << std::endl; 
     for (size_t i = 0; i < w.params.pts; i++) {
         uint64_t replica_ind = 0;
+        // std::cout << i << std::endl;
         for (Replica& r: w.replicas) {
             r.sweep(w.p);
             w.energy_values_local[replica_ind++] = r.get_energy();
@@ -474,6 +506,16 @@ void solve(PTWorker& w, std::string& problem_path) {
             }
             check_correct_beta_values(w);
         }
+        if (w.params.icm) {
+            for (size_t icm_target = 0; icm_target < w.Nc; icm_target++) {
+                if (w.wid == 0) {
+                    icm(w, icm_target);
+                } else {
+                    check_icm(w);
+                }
+            }
+        }
+
     }
 
     double best_ene = __DBL_MAX__;
@@ -482,8 +524,10 @@ void solve(PTWorker& w, std::string& problem_path) {
     // std::vector<double> final_energies (w.energy_values_local, w.energy_values_local + w.loc_r);
     uint64_t flips = get_flips(w);
     if (w.wid == 0) {
-       std::cout << best_ene << " " << w.p.maxcut(best_state) << " " << flips << " " << w.swaps << std::endl;
+       std::cout << w.p.energy(best_state) << std::endl;
+       std::cout << best_ene << " " << w.p.maxcut(best_state) << " " << flips << " " << w.swaps << " " << w.params.seed << std::endl;
        std::cout << best_state << std::endl;
+        std::cout << std::vector<double> (w.beta_values, w.beta_values + w.params.Nt) << "\n";
     }
     free_worker(w);
 

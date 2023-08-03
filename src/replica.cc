@@ -18,7 +18,7 @@ void  Replica::mh_accept (Problem& p, uint32_t index) {
     }
     // if (std::abs(energy - p.energy(state)) > 1e-10) {
     //     std::cout << "Incorrect Update " << energy << " " <<  p.energy(state) << std::endl;
-    //     assert(false);
+    //     exit(0);
     // }
     flips += 1;
 }

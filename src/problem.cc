@@ -90,6 +90,25 @@ double Problem::calculate_dE (std::vector<double>& dE, const StateVector& s) con
 #endif
     return ene;
 };
+
+double Problem::energy (bool* s) const {
+    double ene = 0.0;
+    for (uint64_t i = 0; i < N; i++) {
+        int8_t ival = sign(s[i]);
+        if (sparse) {
+            const std::list<Edge>& iedges = formulation_sparse.at(i);
+            for (auto e: iedges) {
+                ene += 0.5 * ival * sign(s[e.dest]) * e.weight;
+            }
+        } else {
+            const std::vector<double>& iedges = formulation.at(i);
+            for (uint64_t j = i+1; j < N; j++) {
+                ene += ival * sign(s[j]) * iedges.at(j);
+            }
+        }
+    }
+    return ene;
+};;
 double Problem::energy (const StateVector& s) const {
     double ene = 0.0;
     for (uint64_t i = 0; i < N; i++) {
@@ -166,12 +185,13 @@ Problem::Problem(std::string path, uint64_t seed, uint64_t _burn_in): rng_engine
             formulation[i] = std::vector<double>(N, 0.0);
         }
     }
-
+    
     int offset = (path.find(".gset") == std::string::npos) ? -1 : 0;
     
     std::string line;
     std::istringstream linestream;
-
+    double sum = 0;
+    double sqsum = 0;
     while(std::getline(infile, line)) {
         if (line.size() <= 1) {
             continue;
@@ -186,6 +206,8 @@ Problem::Problem(std::string path, uint64_t seed, uint64_t _burn_in): rng_engine
         } else {
             linestream >> w;
         }
+        sum += w;
+        sqsum += w * w; // add the value squared
         if (sparse) {
             formulation_sparse[u].push_back({v, w});
             formulation_sparse[v].push_back({u, w});
@@ -194,5 +216,7 @@ Problem::Problem(std::string path, uint64_t seed, uint64_t _burn_in): rng_engine
             formulation[v][u] = w;
         }
     }
+    double variance = sqsum / M - (sum / M * sum / M); // store the variance
+    characteristic_scale = std::max(sum / M, variance);
     infile.close();
 };
