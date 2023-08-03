@@ -19,6 +19,7 @@ struct Parameters {
     double T1;
     bool inverse;
     bool log_data;
+    uint32_t verbosity;
 };
 
 struct PTWorker {

@@ -14,16 +14,17 @@ int parse_args (int argc,
                  Parameters& params) {
     po::options_description desc("Allowed options");
     desc.add_options()
-        ("help", "produce help message")
-        ("seed", po::value<uint64_t>()->default_value(time(NULL)), "random seed")
-        ("problem", po::value<std::string>(), "path to problem file (GSET)")
-        ("burn_in", po::value<uint64_t>()->default_value(500), "number of MCMC burn-in steps before logging")
-        ("replicas", po::value<uint64_t>()->default_value(20), "number of independent temperatures to simulate")
+        ("help,h", "produce help message")
+        ("seed,s", po::value<uint64_t>()->default_value(time(NULL)), "random seed")
+        ("problem,p", po::value<std::string>(), "path to problem file (GSET)")
+        ("burn_in,b", po::value<uint64_t>()->default_value(500), "number of MCMC burn-in steps before logging")
+        ("replicas,r", po::value<uint64_t>()->default_value(20), "number of independent temperatures to simulate")
         ("pts", po::value<uint64_t>()->default_value(2000), "number of parallel tempering steps (one sweep per replica, one replica exchange attempt, one ICM)")
-        ("temp0", po::value<double>()->default_value(0.1), "Starting temperature")
-        ("temp1", po::value<double>()->default_value(1.6), "Ending temperature")
-        ("inverse", po::value<bool>()->default_value(false), "Interpret temperatures as inverted")
-        ("log", po::value<bool>()->default_value(false), "Log data and calculate observables (u and c)")
+        ("temp0,T0", po::value<double>()->default_value(1.92), "Starting temperature")
+        ("temp1,T1", po::value<double>()->default_value(2.6903), "Ending temperature")
+        ("inverse,i", po::bool_switch(&params.inverse)->default_value(true), "Interpret temperatures as inverted")
+        ("log", po::bool_switch(&params.log_data)->default_value(false), "Log data and calculate observables (u and c)")
+        ("verbose", po::value<uint32_t>()->default_value(0), "Verbosity level (0 for minimal messages, 1 for periodic updates, 2 for debugging)")
     ;
     po::variables_map opts;
     po::store(po::parse_command_line(argc, argv, desc), opts);
@@ -38,8 +39,7 @@ int parse_args (int argc,
     params.burn_in = opts["burn_in"].as<uint64_t>();
     params.T0 = opts["temp0"].as<double>();
     params.T1 = opts["temp1"].as<double>();
-    params.inverse = opts["inverse"].as<bool>();
-    params.log_data = opts["log"].as<bool>();
+    params.verbosity = opts["verbose"].as<uint32_t>();
     return 0;
 
 }

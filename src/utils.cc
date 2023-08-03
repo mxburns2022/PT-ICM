@@ -17,6 +17,17 @@ std::ostream& operator<<(std::ostream& out, StateVector vec){
     out << "]";
     return out;
 };
+std::ostream& operator<<(std::ostream& out, std::vector<uint8_t> vec){
+    out << "[";
+    if (vec.size() > 0) {
+        for (uint64_t i = 0; i < vec.size() - 1; i++) {
+            out << static_cast<int32_t>(vec[i]) << " ";
+        }
+        out << static_cast<int32_t>(vec.back());
+    }
+    out << "]";
+    return out;
+};
 std::ostream& operator<<(std::ostream& out, ReplicaChain& rc) {
     const std::vector<Replica> replicas = rc.get_replicas();
     if (replicas.size() == 0) {

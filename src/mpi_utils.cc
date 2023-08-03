@@ -5,11 +5,7 @@ void beta_linspace(double* temps, double T0, double T1, uint64_t num_temp, bool 
     double step = inverse ? (T1 - T0) / (num_temp - 1) : (1 / T1 - 1 / T0) / (num_temp - 1);
     double curr_temp = inverse ? T0 : 1 / T0;
     for (uint64_t i = 0; i < num_temp; i++) {
-        if (inverse) {
-            temps[i] = 1 / curr_temp;
-        } else {
-            temps[i] = curr_temp;
-        }
+        temps[i] = curr_temp;
         curr_temp += step;
     }
 }
@@ -24,26 +20,30 @@ void create_datatype(MPI_Datatype& param_type) {
                                          1,
                                          1,
                                          1,
+                                         1,
                                          1};
     MPI_Datatype param_types[] = {MPI_UNSIGNED_LONG, // seed
                                   MPI_UNSIGNED_LONG, // Nt
                                   MPI_UNSIGNED_LONG, // pts
                                   MPI_UNSIGNED_LONG, // burn_in
+                                  MPI_UNSIGNED, // verbosity
                                   MPI_DOUBLE,        // T0
                                   MPI_DOUBLE,        // T1
                                   MPI_CXX_BOOL,      // inverse
                                   MPI_CXX_BOOL      // log_data
                            };
-    MPI_Aint     param_offsets[8];
-    param_offsets[0] = offsetof(Parameters, seed);
-    param_offsets[1] = offsetof(Parameters, Nt);
-    param_offsets[2] = offsetof(Parameters, pts);
-    param_offsets[3] = offsetof(Parameters, burn_in);
-    param_offsets[4] = offsetof(Parameters, T0);
-    param_offsets[5] = offsetof(Parameters, T1);
-    param_offsets[6] = offsetof(Parameters, inverse);
-    param_offsets[7] = offsetof(Parameters, log_data);
-    MPI_Type_create_struct(8,
+    MPI_Aint     param_offsets[9];
+    uint32_t runner = 0;
+    param_offsets[runner++] = offsetof(Parameters, seed);
+    param_offsets[runner++] = offsetof(Parameters, Nt);
+    param_offsets[runner++] = offsetof(Parameters, pts);
+    param_offsets[runner++] = offsetof(Parameters, burn_in);
+    param_offsets[runner++] = offsetof(Parameters, verbosity);
+    param_offsets[runner++] = offsetof(Parameters, T0);
+    param_offsets[runner++] = offsetof(Parameters, T1);
+    param_offsets[runner++] = offsetof(Parameters, inverse);
+    param_offsets[runner++] = offsetof(Parameters, log_data);
+    MPI_Type_create_struct(runner,
                            param_blocklengths,
                            param_offsets,
                            param_types,
@@ -55,8 +55,8 @@ void initialize_temperatures(PTWorker& w) {
     Parameters& par = w.params;
     w.beta_values_local = new double[w.loc_r];
     w.chain_index_local = new uint8_t[w.loc_r];
-    std::cout <<  w.wid << " " << w.loc_r << std::endl;
-    getchar();
+    // std::cout <<  w.wid << " " << w.loc_r << std::endl;
+    // getchar();
     // Distribute the replicas to each worker
     if (w.wid == 0) {
         std::cout << "Distributing replicas\n";
@@ -93,12 +93,14 @@ void initialize_temperatures(PTWorker& w) {
             double* start_pointer = (w.numw - 1) * w.worker_r + w.beta_values;
             MPI_Send(start_pointer, w.last_r, MPI_DOUBLE, w.numw - 1, 0, MPI_COMM_WORLD);
             uint8_t* start_chain_pointer = (w.numw - 1) * w.worker_r + w.chain_index_global;
-            MPI_Send(start_chain_pointer, w.worker_r, MPI_UNSIGNED_CHAR, w.numw - 1, 0, MPI_COMM_WORLD);
+            MPI_Send(start_chain_pointer, w.last_r, MPI_UNSIGNED_CHAR, w.numw - 1, 0, MPI_COMM_WORLD);
         }
 
+        // std::cout << w.wid << " chain indices: " <<std::vector<uint8_t> (w.chain_index_global, w.chain_index_global + w.params.Nt * 2) << std::endl;
     } else {
         MPI_Recv(w.beta_values_local, w.loc_r, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, &w.stat);
         MPI_Recv(w.chain_index_local, w.loc_r, MPI_UNSIGNED_CHAR, 0, 0, MPI_COMM_WORLD, &w.stat);
+        // std::cout << w.wid << " chain indices: " <<std::vector<uint8_t> (w.chain_index_local, w.chain_index_local + w.loc_r) << std::endl;
     }
 };
 void read_problem(PTWorker& w, std::string problem_path) {
@@ -136,9 +138,9 @@ void read_problem(PTWorker& w, std::string problem_path) {
     }
     if (w.wid != 0){
         if (is_sparse) {
-            w.p = Problem(weights.get(), src.get(), dst.get(), w.params.seed, w.params.burn_in, N, M);
+            w.p = Problem(weights.get(), src.get(), dst.get(), w.params.seed + w.wid, w.params.burn_in, N, M);
         } else {
-            w.p = Problem(weights.get(), w.params.seed, w.params.burn_in, N);
+            w.p = Problem(weights.get(), w.params.seed + w.wid, w.params.burn_in, N);
         }
     }
 };
@@ -203,6 +205,9 @@ void gather_energy_values(PTWorker& w) {
                     MPI_COMM_WORLD, 
                     &w.stat);
         std::memcpy(w.energy_values_global, w.energy_values_local, w.loc_r * sizeof(double));
+        // std::cout << std::vector<double>(w.energy_values_global, w.energy_values_global+w.params.Nt * 2) << std::endl; 
+        // std::cout << std::vector<double>(w.beta_values, w.beta_values+w.params.Nt * 2) << std::endl; 
+        // getchar();
     } else {
         MPI_Send(w.energy_values_local, w.loc_r, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
     }
@@ -221,7 +226,7 @@ void gather_best_energy_values(PTWorker& w, double& best_ene_global, StateVector
     }
     std::unique_ptr<bool[]> state_temp = std::make_unique<bool[]>(w.p.vcount());
     if (w.wid == 0) {
-        std::cout << best_ene_local << std::endl;
+        // std::cout << best_ene_local << std::endl;
         best_ene_global = best_ene_local;
         best_state = state;
         double ene_temp;
@@ -243,7 +248,7 @@ void gather_best_energy_values(PTWorker& w, double& best_ene_global, StateVector
             if (ene_temp < best_ene_global) {
                 best_state = StateVector(state_temp.get(), state_temp.get() + w.p.vcount());
                 best_ene_global = ene_temp;
-                std::cout << best_ene_global << std::endl;
+                // std::cout << best_ene_global << std::endl;
             }
         }
     } else {
@@ -266,7 +271,7 @@ void try_replica_exchange(PTWorker& w,
     uint32_t replica_1_ind = w.beta_indices[chain_exchange_index];
     uint32_t replica_2_ind = w.beta_indices[chain_exchange_index+1];
     uint32_t worker_1 = w.replica_workers[replica_1_ind];
-    uint32_t worker_2 = w.replica_workers[replica_2_ind+1];
+    uint32_t worker_2 = w.replica_workers[replica_2_ind];
 
     double beta_low = w.beta_values[chain_exchange_index];
     double beta_high = w.beta_values[chain_exchange_index+1];
@@ -275,17 +280,21 @@ void try_replica_exchange(PTWorker& w,
                 w.energy_values_global[replica_2_ind]; 
     double log_boltzmann = dBeta * dE;
     double rndcomp = std::log(w.p.rand_double());
-    
-    // std::cout << "dB: " << dBeta << std::endl;
-    // std::cout << "dE: " << dE << std::endl;
-    // std::cout << "B1: " << beta_low << " B2:" << beta_high  << std::endl;
-    // std::cout << "I1: " << replica_1_ind << " I2:" << replica_2_ind  << std::endl;
-    // std::cout << "E1: " << w.energy_values_global[replica_1_ind] << " E2:" << w.energy_values_global[replica_2_ind]  << std::endl;
-    // std::cout << "log(dB*dE): " <<  log_boltzmann << std::endl;
-    // std::cout<< "RND: " <<  std::log(w.p.rand_double()) << std::endl;
+    if (w.params.verbosity >= 2) {
+        std::cout << "\n\n(%d %d)\ndB: " << dBeta << std::endl;
+        std::cout << "dE: " << dE << std::endl;
+        std::cout << "B1: " << beta_low << " B2:" << beta_high  << std::endl;
+        std::cout << "I1: " << replica_1_ind << " I2:" << replica_2_ind  << std::endl;
+        std::cout << "E1: " << w.energy_values_global[replica_1_ind] << " E2:" << w.energy_values_global[replica_2_ind]  << std::endl;
+        std::cout << "log(dB*dE): " <<  log_boltzmann << std::endl;
+        std::cout<< "RND: " <<  rndcomp << std::endl;
+    }
     // getchar();
-    if (std::log(w.p.rand_double()) > log_boltzmann) {
-        printf("\nSWAPPING temperatures %f <-> %f in replicas %d and %d\n", beta_low, beta_high, worker_1, worker_2); 
+    if (rndcomp > log_boltzmann) {
+        if (w.params.verbosity >= 2) {
+            printf("\nSWAPPING temperatures %f <-> %f in replicas %d and %d\n", beta_low, beta_high, worker_1, worker_2); 
+            fflush(stdout);
+        }
         w.swaps ++;
         bool swap = true;
         if (worker_1 == 0) {
@@ -310,14 +319,7 @@ void try_replica_exchange(PTWorker& w,
                 MPI_Send(&chain_index, 1, MPI_UNSIGNED_CHAR, worker_2, 0, MPI_COMM_WORLD);
             }
         }
-        std::swap(w.replica_workers[replica_1_ind], w.replica_workers[replica_2_ind]);
         std::swap(w.beta_indices[chain_exchange_index], w.beta_indices[chain_exchange_index + 1]);
-        w.exchange_index++;
-        if (w.exchange_index == w.params.Nt - 1) {
-            w.exchange_index = 0;
-            std::shuffle(w.chain_1_exchange_order, w.chain_1_exchange_order + w.params.Nt - 1, w.p.get_rng());
-            std::shuffle(w.chain_2_exchange_order, w.chain_2_exchange_order + w.params.Nt - 1, w.p.get_rng());
-        }
     } else {
         bool swap = false;
         if (worker_1 != 0)
@@ -327,6 +329,12 @@ void try_replica_exchange(PTWorker& w,
             if (worker_2 != 0)
                 MPI_Send(&swap, 1, MPI_CXX_BOOL, worker_2, 0, MPI_COMM_WORLD);
         }
+    }
+    w.exchange_index++;
+    if (w.exchange_index == w.params.Nt - 1) {
+        w.exchange_index = 0;
+        std::shuffle(w.chain_1_exchange_order, w.chain_1_exchange_order + w.params.Nt - 1, w.p.get_rng());
+        std::shuffle(w.chain_2_exchange_order, w.chain_2_exchange_order + w.params.Nt - 1, w.p.get_rng());
     }
     for (uint64_t i = 1; i < w.numw; i++) {
         bool dummy = false;
@@ -341,26 +349,27 @@ void do_replica_exchange_local(PTWorker& w,
                                double beta_old, 
                                double beta_new,
                                uint8_t chain_index) {
-     std::cout << beta_old << " " << beta_new << std::endl;
+    //  std::cout << w.wid << " " << beta_old << " " << beta_new << std::endl;
+    //  std::cout << std::vector<double>(w.beta_values_local, w.beta_values_local + w.loc_r) << "\n"; 
      bool check = false;
      for (uint64_t j = 0; j < w.loc_r; j++) {
-        if (std::abs(w.beta_values_local[j] - beta_old) < 1e-10 && w.chain_index_local[j] == chain_index) {
+        // printf("(%d, %f) ", w.chain_index_local[j], w.beta_values_local[j]);
+        if (std::abs(w.beta_values_local[j] - beta_new) < 1e-10 && w.chain_index_local[j] == chain_index) {
             Replica& r = w.replicas[j];
-            w.beta_values_local[j] = beta_new;
-            r.set_beta(beta_new);
-            std::cout << "Replace old" << std::endl;
+            // printf("\nWorker %d replacing %f (%f) with %f\n", w.wid, r.get_beta(), w.beta_values_local[j], beta_old);
+            w.beta_values_local[j] = beta_old;
+            r.set_beta(beta_old);
             check = true;
         }
-        else if (std::abs(w.beta_values_local[j] - beta_new) < 1e-10 && w.chain_index_local[j] == chain_index) {
+        else if (std::abs(w.beta_values_local[j] - beta_old) < 1e-10 && w.chain_index_local[j] == chain_index) {
             Replica& r = w.replicas[j];
-            w.beta_values_local[j] = beta_old;
-            std::cout << "Replace new" << std::endl;
-            r.set_beta(beta_old);
+            // printf("\nWorker %d replacing %f (%f) with %f\n", w.wid, r.get_beta(), w.beta_values_local[j], beta_new);
+            w.beta_values_local[j] = beta_new;
+            r.set_beta(beta_new);
             check = true;
         }
     }   
     assert(check);
-    getchar();                         
 };
 uint64_t get_flips(PTWorker& w) {
      uint64_t flip_sum = std::accumulate(w.replicas.begin(), w.replicas.end(), 0, [] (uint64_t sum, const Replica& r) {return sum + r.get_flips();}); 
@@ -387,7 +396,7 @@ void check_for_replica_exchange(PTWorker& w) {
 void check_correct_beta_values(PTWorker& w) {
     bool correct = 1;
     if (w.wid == 0) {
-        std::cout << "\nSTARTING CHECK\n";
+        // std::cout << "\nSTARTING CHECK\n";
         correct = 1;
         std::unique_ptr<double[]> true_beta_values = std::make_unique<double[]>(w.params.Nt * 2);
         int i;
@@ -404,8 +413,8 @@ void check_correct_beta_values(PTWorker& w) {
             uint32_t recorded_ind = w.beta_indices[i];
             rec_beta_vec[i] = true_beta_values[recorded_ind];
         }
-        std::cout << rec_beta_vec << std::endl;
-        std::cout << true_beta_vec << std::endl;
+        // std::cout << rec_beta_vec << std::endl << std::endl;
+        // std::cout << true_beta_vec << std::endl;
         for (i = 0; i < w.params.Nt*2; i++) {
 
             if (std::abs(rec_beta_vec[i] - true_beta_vec[i]) > 1e-10) {
@@ -454,15 +463,17 @@ void solve(PTWorker& w, std::string& problem_path) {
             w.energy_values_local[replica_ind++] = r.get_energy();
         }
         gather_energy_values(w);
-        if (w.wid == 0){
-            try_replica_exchange(w, 0);
-            try_replica_exchange(w, 1);
-        } else {
+        for (size_t m = 0; m < w.params.Nt - 1; m++) {
+            if (w.wid == 0){
+                try_replica_exchange(w, 0);
+                try_replica_exchange(w, 1);
+            } else {
 
-            check_for_replica_exchange(w);
-            check_for_replica_exchange(w);
+                check_for_replica_exchange(w);
+                check_for_replica_exchange(w);
+            }
+            check_correct_beta_values(w);
         }
-        check_correct_beta_values(w);
     }
 
     double best_ene = __DBL_MAX__;
@@ -471,7 +482,7 @@ void solve(PTWorker& w, std::string& problem_path) {
     // std::vector<double> final_energies (w.energy_values_local, w.energy_values_local + w.loc_r);
     uint64_t flips = get_flips(w);
     if (w.wid == 0) {
-       std::cout << best_ene << " " << w.p.maxcut(best_state) << " " << flips << std::endl;
+       std::cout << best_ene << " " << w.p.maxcut(best_state) << " " << flips << " " << w.swaps << std::endl;
        std::cout << best_state << std::endl;
     }
     free_worker(w);
