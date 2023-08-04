@@ -5,7 +5,14 @@ namespace pticm {
                             uint8_t chain_index) {
         assert(w.wid == 0);
         uint64_t Nt = w.params.Nt;
-        uint64_t chain_exchange_index = w.exchange_index + (chain_index > 0 ? Nt : 0);
+        
+        uint64_t chain_exchange_index;
+        if (chain_index == 0) {
+            chain_exchange_index = w.chain_1_exchange_order[w.exchange_index];
+        } else {
+            chain_exchange_index = w.chain_1_exchange_order[w.exchange_index] + Nt;
+        }
+        w.swap_attempts[chain_exchange_index] ++;
         uint32_t replica_1_ind = w.beta_indices[chain_exchange_index];
         uint32_t replica_2_ind = w.beta_indices[chain_exchange_index+1];
         uint32_t worker_1 = w.replica_workers[replica_1_ind];
@@ -29,6 +36,7 @@ namespace pticm {
         }
         // getchar();
         if ((dE * dBeta) > 0 || rndcomp < log_boltzmann) {
+            w.swap_successes[chain_exchange_index] ++;
             if (w.params.verbosity >= 2) {
                 printf("\nSWAPPING temperatures %f <-> %f, dE = %f, in replicas %d and %d\n", beta_low, beta_high, dE, worker_1, worker_2); 
                 fflush(stdout);

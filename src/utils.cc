@@ -38,6 +38,15 @@ namespace pticm{
         out << "]";
         return out;
     };
+
+    std::vector<double> operator/(std::vector<uint32_t>& left, std::vector<uint32_t>& right) {
+        assert(left.size() == right.size());
+        std::vector<double> result = std::vector<double>(left.size());
+        for (size_t i = 0; i < left.size(); i++) {
+            result[i] = right[i] > 0 ? static_cast<double>(left[i]) / right[i] : 0;
+        }
+        return result;
+    };
 }
 
 

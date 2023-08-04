@@ -32,11 +32,13 @@ namespace pticm {
                                             1,
                                             1,
                                             1,
+                                            1,
                                             1};
         MPI_Datatype param_types[] = {MPI_UNSIGNED_LONG, // seed
                                     MPI_UNSIGNED_LONG, // Nt
                                     MPI_UNSIGNED_LONG, // pts
                                     MPI_UNSIGNED_LONG, // burn_in
+                                    MPI_UNSIGNED_LONG, // Sweeps
                                     MPI_UNSIGNED, // verbosity
                                     MPI_DOUBLE,        // T0
                                     MPI_DOUBLE,        // T1
@@ -45,12 +47,13 @@ namespace pticm {
                                     MPI_CXX_BOOL,      // log_data
                                     MPI_CXX_BOOL      // icm
                             };
-        MPI_Aint     param_offsets[11];
+        MPI_Aint     param_offsets[12];
         uint32_t runner = 0;
         param_offsets[runner++] = offsetof(Parameters, seed);
         param_offsets[runner++] = offsetof(Parameters, Nt);
         param_offsets[runner++] = offsetof(Parameters, pts);
         param_offsets[runner++] = offsetof(Parameters, burn_in);
+        param_offsets[runner++] = offsetof(Parameters, sweeps);
         param_offsets[runner++] = offsetof(Parameters, verbosity);
         param_offsets[runner++] = offsetof(Parameters, T0);
         param_offsets[runner++] = offsetof(Parameters, T1);

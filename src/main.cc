@@ -28,6 +28,7 @@ int parse_args (int argc,
         ("seed,s", po::value<uint64_t>()->default_value(time(NULL)), "random seed")
         ("problem,p", po::value<std::string>(), "path to problem file (GSET)")
         ("burn_in,b", po::value<uint64_t>()->default_value(500), "number of MCMC burn-in steps before logging")
+        ("sweeps,s", po::value<uint64_t>()->default_value(1), "replica sweeps per parallel tempering step")
         ("replicas,r", po::value<uint64_t>()->default_value(20), "number of independent temperatures to simulate")
         ("pts", po::value<uint64_t>()->default_value(2000), "number of parallel tempering steps (one sweep per replica, one replica exchange attempt, one ICM)")
         ("temp0,T0", po::value<double>()->default_value(1.92), "Starting temperature")
@@ -47,6 +48,7 @@ int parse_args (int argc,
     problem_path = opts["problem"].as<std::string>();
     params.seed = opts["seed"].as<uint64_t>();
     params.Nt = opts["replicas"].as<uint64_t>();
+    params.sweeps = opts["sweeps"].as<uint64_t>();
     params.pts = opts["pts"].as<uint64_t>();
     params.burn_in = opts["burn_in"].as<uint64_t>();
     params.T0 = opts["temp0"].as<double>();
@@ -76,6 +78,11 @@ int parse_args (int argc,
         if (param == "--burn_in" || param == "-b") {
             assert(i < argc - 1);
             params.burn_in = std::atol(argv[++i]);
+            
+        } else 
+        if (param == "--sweeps") {
+            assert(i < argc - 1);
+            params.sweeps = std::atol(argv[++i]);
             
         } else 
         if (param == "--replicas" || param == "-r") {

@@ -9,7 +9,6 @@ namespace pticm {
         std::unique_ptr<int[]> src;
         std::unique_ptr<int[]> dst;
         if (w.wid == 0) {
-            std::cout << "Constructing original problem... " << problem_path << std::endl;
             Problem& p = w.p;
             LINECHECK
             p = Problem(problem_path,
@@ -71,6 +70,8 @@ namespace pticm {
             w.chain_1_exchange_order = new uint32_t [Nt - 1];
             w.chain_2_exchange_order = new uint32_t [Nt - 1];
             w.beta_indices = new uint32_t [Nt * 2];
+            w.swap_attempts = std::vector<uint32_t> (Nt * 2, 0);
+            w.swap_successes = std::vector<uint32_t> (Nt * 2, 0);
             for (uint64_t i = 0; i < Nt - 1; i++) {
                 w.chain_1_exchange_order[i] = i;
                 w.chain_2_exchange_order[i] = i;
@@ -94,7 +95,6 @@ namespace pticm {
         // getchar();
         // Distribute the replicas to each worker
         if (w.wid == 0) {
-            std::cout << "Distributing replicas\n";
             w.swaps = 0;
             w.replica_workers = new int[par.Nt * 2];
             w.chain_index_global = new uint8_t [par.Nt * 2];
