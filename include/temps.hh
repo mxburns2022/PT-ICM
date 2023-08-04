@@ -1,4 +1,5 @@
 #include <vector>
+#include <cstdint>
 #ifndef TEMPS
 #define TEMPS
 // Temperatures are taken from Malakis and Papakonstaninou 2013 "Comparative Study of Selected Parallel Tempering Methods"

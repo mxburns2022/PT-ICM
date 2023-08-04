@@ -1,8 +1,8 @@
 .PHONY : all clean
 
 CXX = mpic++
-CXXFLAGS = -std=c++17 -O3 -Wall -funroll-loops  -DNDEBUG
-DEBUGFLAGS = -std=c++17 -g -pg -Wall -funroll-loops -DNDEBUG
+CXXFLAGS = -std=c++17 -O3 -Wall -funroll-loops  -DNDEBUG -DBOOST
+DEBUGFLAGS = -std=c++17 -g -pg -Wall -funroll-loops -DNDEBUG 
 INCLUDE_TARGETS=-Iinclude/ -I./ -I/opt/homebrew/opt/boost/include/
 LIBS=-L/software/boost/1.78.0/b1/lib/ -lboost_program_options
 # GSET=/scratch/mhuang_lab/ISING_MACHINES/GSET/tiny_new/G281

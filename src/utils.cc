@@ -1,60 +1,44 @@
 #include "pt_icm.hh"
 #include "utils.hh"
-
-void parse_args(int argc, 
-                char** argv,
-                uint64_t) {
-
-}
-std::ostream& operator<<(std::ostream& out, StateVector vec){
-    out << "[";
-    if (vec.size() > 0) {
-        for (uint64_t i = 0; i < vec.size() - 1; i++) {
-            out << static_cast<int32_t>(vec[i]) << " ";
+namespace pticm{
+    std::ostream& operator<<(std::ostream& out, StateVector vec){
+        out << "[";
+        if (vec.size() > 0) {
+            for (uint64_t i = 0; i < vec.size() - 1; i++) {
+                out << static_cast<int32_t>(vec[i]) << " ";
+            }
+            out << static_cast<int32_t>(vec.back());
         }
-        out << static_cast<int32_t>(vec.back());
-    }
-    out << "]";
-    return out;
-};
-std::ostream& operator<<(std::ostream& out, std::list<Edge> vec){
-    out << "[";
-    size_t size = vec.size();
-    if (size > 0) {
-        size_t ind = 0;
-        for (Edge& e: vec) {
-            out << "(" << e.dest << ", " << e.weight << ")";
-            if (++ind < size) {
-                out << ", ";
+        out << "]";
+        return out;
+    };
+    std::ostream& operator<<(std::ostream& out, std::list<Edge> vec){
+        out << "[";
+        size_t size = vec.size();
+        if (size > 0) {
+            size_t ind = 0;
+            for (Edge& e: vec) {
+                out << "(" << e.dest << ", " << e.weight << ")";
+                if (++ind < size) {
+                    out << ", ";
+                }
             }
         }
-    }
-    out << "]";
-    return out;
-};
-std::ostream& operator<<(std::ostream& out, std::vector<uint8_t> vec){
-    out << "[";
-    if (vec.size() > 0) {
-        for (uint64_t i = 0; i < vec.size() - 1; i++) {
-            out << static_cast<int32_t>(vec[i]) << " ";
-        }
-        out << static_cast<int32_t>(vec.back());
-    }
-    out << "]";
-    return out;
-};
-std::ostream& operator<<(std::ostream& out, ReplicaChain& rc) {
-    const std::vector<Replica> replicas = rc.get_replicas();
-    if (replicas.size() == 0) {
-        out << "()";
+        out << "]";
         return out;
-    }
-    for (uint64_t i = 0; i < replicas.size()-1; i++) {
-        out << "(" << replicas[i].get_beta() << ": " << replicas[i].get_energy() << ", " << replicas[i].get_flips() << "), ";
-    }
-    out << "(" << replicas.back().get_beta() << ": " << replicas.back().get_energy()<< ", " << replicas.back().get_flips() << ")";
-    return out;
-}   
+    };
+    std::ostream& operator<<(std::ostream& out, std::vector<uint8_t> vec){
+        out << "[";
+        if (vec.size() > 0) {
+            for (uint64_t i = 0; i < vec.size() - 1; i++) {
+                out << static_cast<int32_t>(vec[i]) << " ";
+            }
+            out << static_cast<int32_t>(vec.back());
+        }
+        out << "]";
+        return out;
+    };
+}
 
 
 // void get_histogram(Problem& p, std::vector<double>& temperatures, uint64_t Nt, uint64_t nsweeps, uint64_t bins, double r) {

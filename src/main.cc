@@ -1,18 +1,16 @@
-#include "pt_icm.hh"
-#include "temps.hh"
-#include "utils.hh"
-#include "mpi_defs.hh"
 #include <time.h>
 #include <sstream>
 #include <cmath>
 #include <boost/format.hpp>
 #include <boost/program_options.hpp>
+#include "solver.hh"
+#include "mpi_utils.hh"
+
 namespace po = boost::program_options;
 int parse_args (int argc, 
                  char** argv,
                  std::string& problem_path,
-                 Parameters& params) {
-//     po::options_description desc("Allowed options");
+                 pticm::Parameters& params) {
     params.inverse = false;
     params.log_data = false;
     params.icm = false;
@@ -23,20 +21,40 @@ int parse_args (int argc,
     params.T0 = 1.92;
     params.T1 = 2.6903;
     params.verbosity = 0;
-//      desc.add_options()
-//         ("help,h", "produce help message")
-//         ("seed,s", po::value<uint64_t>()->default_value(time(NULL)), "random seed")
-// //         ("problem,p", po::value<std::string>(), "path to problem file (GSET)")
-//         ("burn_in,b", po::value<uint64_t>()->default_value(500), "number of MCMC burn-in steps before logging")
-//         ("replicas,r", po::value<uint64_t>()->default_value(20), "number of independent temperatures to simulate")
-//         ("pts", po::value<uint64_t>()->default_value(2000), "number of parallel tempering steps (one sweep per replica, one replica exchange attempt, one ICM)")
-//         ("temp0,T0", po::value<double>()->default_value(1.92), "Starting temperature")
-//         ("temp1,T1", po::value<double>()->default_value(2.6903), "Ending temperature")
-//         ("inverse,i", po::bool_switch(&params.inverse), "Interpret temperatures as inverted")
-//         ("log", po::bool_switch(&params.log_data), "Log data and calculate observables (u and c)")
-//         ("icm", po::bool_switch(&params.icm), "Enable isoenergetic cluster moves (ICM)")
-//         ("verbose", po::value<uint32_t>()->default_value(0), "Verbosity level (0 for minimal messages, 1 for periodic updates, 2 for debugging)")
-//     ;
+#ifdef BOOST
+    po::options_description desc("Allowed options");
+     desc.add_options()
+        ("help,h", "produce help message")
+        ("seed,s", po::value<uint64_t>()->default_value(time(NULL)), "random seed")
+        ("problem,p", po::value<std::string>(), "path to problem file (GSET)")
+        ("burn_in,b", po::value<uint64_t>()->default_value(500), "number of MCMC burn-in steps before logging")
+        ("replicas,r", po::value<uint64_t>()->default_value(20), "number of independent temperatures to simulate")
+        ("pts", po::value<uint64_t>()->default_value(2000), "number of parallel tempering steps (one sweep per replica, one replica exchange attempt, one ICM)")
+        ("temp0,T0", po::value<double>()->default_value(1.92), "Starting temperature")
+        ("temp1,T1", po::value<double>()->default_value(2.6903), "Ending temperature")
+        ("inverse,i", po::bool_switch(&params.inverse), "Interpret temperatures as inverted")
+        ("log", po::bool_switch(&params.log_data), "Log data and calculate observables (u and c)")
+        ("icm", po::bool_switch(&params.icm), "Enable isoenergetic cluster moves (ICM)")
+        ("verbose", po::value<uint32_t>()->default_value(0), "Verbosity level (0 for minimal messages, 1 for periodic updates, 2 for debugging)")
+    ;
+
+    po::variables_map opts;
+    po::store(po::parse_command_line(argc, argv, desc), opts);
+    if (opts.count("help")) {
+        std::cout << desc << std::endl;
+        return -1;
+    }
+    problem_path = opts["problem"].as<std::string>();
+    params.seed = opts["seed"].as<uint64_t>();
+    params.Nt = opts["replicas"].as<uint64_t>();
+    params.pts = opts["pts"].as<uint64_t>();
+    params.burn_in = opts["burn_in"].as<uint64_t>();
+    params.T0 = opts["temp0"].as<double>();
+    params.T1 = opts["temp1"].as<double>();
+    params.verbosity = opts["verbose"].as<uint32_t>();
+    params.icm = opts["icm"].as<bool>();
+    std::cout << params.icm << std::endl;
+#else
     for (int i = 0; i < argc; i++) {
         std::string param = argv[i];
         if (param == "--help" || param == "-h") {
@@ -92,25 +110,8 @@ int parse_args (int argc,
             params.verbosity = std::atol(argv[++i]);
         } 
     }
-//    
+#endif
     
-
-//     po::variables_map opts;
-//     po::store(po::parse_command_line(argc, argv, desc), opts);
-//     if (opts.count("help")) {
-//         std::cout << desc << std::endl;
-//         return -1;
-//     }
-// //     problem_path = opts["problem"].as<std::string>();
-//     params.seed = opts["seed"].as<uint64_t>();
-//     params.Nt = opts["replicas"].as<uint64_t>();
-//     params.pts = opts["pts"].as<uint64_t>();
-//     params.burn_in = opts["burn_in"].as<uint64_t>();
-//     params.T0 = opts["temp0"].as<double>();
-//     params.T1 = opts["temp1"].as<double>();
-//     params.verbosity = opts["verbose"].as<uint32_t>();
-//     params.icm = opts["icm"].as<bool>();
-//     std::cout << params.icm << std::endl;
     return 0;
 
 }
@@ -120,7 +121,7 @@ int main(int argc, char** argv) {
     MPI_Init(NULL, NULL);
     MPI_Status stat;
 
-    PTWorker w;
+    pticm::PTWorker w;
     MPI_Comm_size(MPI_COMM_WORLD, &w.numw);
     MPI_Comm_rank(MPI_COMM_WORLD, &w.wid);
     // inital values
@@ -143,7 +144,7 @@ int main(int argc, char** argv) {
         return 0;
     }
     MPI_Datatype parameter_type;
-    create_datatype(parameter_type);
+    pticm::create_datatype(parameter_type);
     // send the relavent parameters to each worker
     MPI_Bcast((void*)&w.params, 1, parameter_type, 0, MPI_COMM_WORLD);
     uint64_t Nt = w.params.Nt;
@@ -156,7 +157,7 @@ int main(int argc, char** argv) {
     }
     // local problem declaration
     w.loc_r = w.wid != w.numw - 1 ? w.worker_r : w.last_r;
-    solve(w, problem_path);
+    pticm::solve(w, problem_path);
     MPI_Finalize();
     // // local data structures
     // std::unique_ptr<int[]> replica_workers;

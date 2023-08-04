@@ -4,43 +4,43 @@
 #include <vector>
 #include <iostream>
 #include "mpi.h"
-
-template <typename T>
-std::ostream& operator<<(std::ostream& out, std::vector<T> vec){
-    out << "[";
-    if (vec.size() > 0) {
-        for (uint64_t i = 0; i < vec.size() - 1; i++) {
-            out << vec.at(i) << ", ";
-        }
-        out << vec.back();
-
-    }
-    out << "]";
-    return out;
-};
-template <typename T>
-std::ostream& operator<<(std::ostream& out, std::list<T> vec){
+namespace pticm {
+    template <typename T>
+    std::ostream& operator<<(std::ostream& out, std::vector<T> vec){
         out << "[";
-    size_t size = vec.size();
-    if (size > 0) {
-        size_t ind = 0;
-        for (T& e: vec) {
-            out << e;
-            if (++ind < size) {
-                out << ", ";
+        if (vec.size() > 0) {
+            for (uint64_t i = 0; i < vec.size() - 1; i++) {
+                out << vec.at(i) << ", ";
+            }
+            out << vec.back();
+
+        }
+        out << "]";
+        return out;
+    };
+    template <typename T>
+    std::ostream& operator<<(std::ostream& out, std::list<T> vec){
+            out << "[";
+        size_t size = vec.size();
+        if (size > 0) {
+            size_t ind = 0;
+            for (T& e: vec) {
+                out << e;
+                if (++ind < size) {
+                    out << ", ";
+                }
             }
         }
-    }
-    out << "]";
-    return out;
-};
-struct Edge {
-    uint64_t dest;
-    double weight;
-};
-typedef std::vector<bool> StateVector; // for convenience, use boolean vectors
-std::ostream& operator<<(std::ostream& out, StateVector vec);
-typedef std::vector<std::vector<double>> Matrix;
-typedef std::vector<std::list<Edge>> SparseMatrix;
-
+        out << "]";
+        return out;
+    };
+    struct Edge {
+        uint64_t dest;
+        double weight;
+    };
+    typedef std::vector<bool> StateVector; // for convenience, use boolean vectors
+    std::ostream& operator<<(std::ostream& out, StateVector vec);
+    typedef std::vector<std::vector<double>> Matrix;
+    typedef std::vector<std::list<Edge>> SparseMatrix;
+}
 #endif
