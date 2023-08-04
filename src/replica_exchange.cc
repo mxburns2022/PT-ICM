@@ -28,9 +28,9 @@ namespace pticm {
             std::cout<< "RND: " <<  rndcomp << std::endl;
         }
         // getchar();
-        if (rndcomp > log_boltzmann) {
+        if ((dE * dBeta) > 0 || rndcomp < log_boltzmann) {
             if (w.params.verbosity >= 2) {
-                printf("\nSWAPPING temperatures %f <-> %f in replicas %d and %d\n", beta_low, beta_high, worker_1, worker_2); 
+                printf("\nSWAPPING temperatures %f <-> %f, dE = %f, in replicas %d and %d\n", beta_low, beta_high, dE, worker_1, worker_2); 
                 fflush(stdout);
             }
             w.swaps ++;

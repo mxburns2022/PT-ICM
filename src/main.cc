@@ -53,7 +53,8 @@ int parse_args (int argc,
     params.T1 = opts["temp1"].as<double>();
     params.verbosity = opts["verbose"].as<uint32_t>();
     params.icm = opts["icm"].as<bool>();
-    std::cout << params.icm << std::endl;
+    params.log_data = opts["log"].as<bool>();
+    params.inverse = opts["inverse"].as<bool>();
 #else
     for (int i = 0; i < argc; i++) {
         std::string param = argv[i];

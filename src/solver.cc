@@ -23,23 +23,17 @@ namespace pticm {
         }
         // local problem declaration
         w.loc_r = w.wid != w.numw - 1 ? w.worker_r : w.last_r;
-        LINECHECK
+        
         read_problem(w, problem_path);
-        LINECHECK
         initialize_temperatures(w);
-        LINECHECK
         initialize_replicas(w);
-        LINECHECK
         initialize_replica_exchanges(w);
-        LINECHECK
         //check_correct_beta_values(w);
         std::cout << "Worker " << w.wid << " entering main loop\n";
         std::cout << w.wid << " " << w.Nc << " " << w.params.icm << std::endl; 
         for (size_t i = 0; i < w.params.pts; i++) {
 
-            std::cout <<  w.wid << " : " << i << std::endl;
             uint64_t replica_ind = 0;
-            // std::cout << i << std::endl;
             for (Replica& r: w.replicas) {
                 r.sweep(w.p);
                 w.energy_values_local[replica_ind++] = r.get_energy();
@@ -54,7 +48,6 @@ namespace pticm {
                     check_for_replica_exchange(w);
                     check_for_replica_exchange(w);
                 }
-                check_correct_beta_values(w);
             }
             if (w.params.icm) {
                 for (size_t icm_target = 0; icm_target < w.Nc; icm_target++) {
@@ -65,20 +58,17 @@ namespace pticm {
                     }
                 }
             }
-
-            
-            std::cout <<  w.wid << " : " << i << std::endl;
         }
-
+        MPI_Barrier(MPI_COMM_WORLD);
         double best_ene = __DBL_MAX__;
         StateVector best_state;
         gather_best_energy_values(w, best_ene, best_state);
         // std::vector<double> final_energies (w.energy_values_local, w.energy_values_local + w.loc_r);
         uint64_t flips = get_flips(w);
         if (w.wid == 0) {
-        std::cout << w.p.energy(best_state) << std::endl;
-        std::cout << best_ene << " " << w.p.maxcut(best_state) << " " << flips << " " << w.swaps << " " << w.params.seed << std::endl;
-        std::cout << best_state << std::endl;
+            std::cout << w.p.energy(best_state) << std::endl;
+            std::cout << best_ene << " " << w.p.maxcut(best_state) << " " << flips << " " << w.swaps << " " << w.params.seed << std::endl;
+            std::cout << best_state << std::endl;
             std::cout << std::vector<double> (w.beta_values, w.beta_values + w.params.Nt) << "\n";
         }
         free_worker(w);

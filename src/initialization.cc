@@ -47,22 +47,20 @@ namespace pticm {
     };
 
     void initialize_replicas(PTWorker& w) {
-        std::unique_ptr<bool[]> init_state = std::make_unique<bool[]>(w.p.vcount());
-        if (w.wid == 0) {
+        // std::unique_ptr<bool[]> init_state = std::make_unique<bool[]>(w.p.vcount());
+        // if (w.wid == 0) {
 
-            std::bernoulli_distribution init_gen(0.5);
-            for (uint64_t i = 0; i < w.p.vcount(); i++) {
-                init_state[i] = init_gen(w.p.get_rng());
-            }
-        }
-        LINECHECK
-        MPI_Bcast(init_state.get(), w.p.vcount(), MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
-        std::vector<bool> init_vector (init_state.get(), init_state.get() + w.p.vcount());
-        std::cout << w.loc_r << " " << w.p.vcount() << std::endl;
-        std::vector<double> dE(w.p.vcount());
-        double init_ene = w.p.calculate_dE(dE, init_vector); 
+        std::bernoulli_distribution init_gen(0.5);
+        // }
+        // MPI_Bcast(init_state.get(), w.p.vcount(), MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
         w.replicas = std::vector<Replica>(w.loc_r);
+        StateVector init_vector (w.p.vcount());
         for (size_t i = 0; i < w.loc_r; i++) {
+            for (uint64_t j = 0; j < w.p.vcount(); j++) {
+                init_vector[j] = init_gen(w.p.get_rng());
+            }
+            std::vector<double> dE(w.p.vcount(), 0);
+            double init_ene = w.p.calculate_dE(dE, init_vector); 
             w.replicas[i] = Replica(w.p, w.beta_values_local[i], init_vector, dE, init_ene);
         }
     };

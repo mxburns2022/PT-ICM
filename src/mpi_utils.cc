@@ -86,9 +86,6 @@ namespace pticm {
                         MPI_COMM_WORLD, 
                         &w.stat);
             std::memcpy(w.energy_values_global, w.energy_values_local, w.loc_r * sizeof(double));
-            // std::cout << std::vector<double>(w.energy_values_global, w.energy_values_global+w.params.Nt * 2) << std::endl; 
-            // std::cout << std::vector<double>(w.beta_values, w.beta_values+w.params.Nt * 2) << std::endl; 
-            // getchar();
         } else {
             MPI_Send(w.energy_values_local, w.loc_r, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
         }
@@ -104,12 +101,10 @@ namespace pticm {
                 best_ene_local = r_ene;
                 state = r.get_best_state();
             }
-            std::cout << ind << " " << r_ene << " " << r.get_beta() << std::endl;
             ind ++;
         }
         std::unique_ptr<bool[]> state_temp = std::make_unique<bool[]>(w.p.vcount());
         if (w.wid == 0) {
-            // std::cout << best_ene_local << std::endl;
             best_ene_global = best_ene_local;
             best_state = state;
             double ene_temp;
@@ -131,7 +126,6 @@ namespace pticm {
                 if (ene_temp < best_ene_global) {
                     best_state = StateVector(state_temp.get(), state_temp.get() + w.p.vcount());
                     best_ene_global = ene_temp;
-                    // std::cout << best_ene_global << std::endl;
                 }
             }
         } else {
@@ -176,8 +170,6 @@ namespace pticm {
                 uint32_t recorded_ind = w.beta_indices[i];
                 rec_beta_vec[i] = true_beta_values[recorded_ind];
             }
-            // std::cout << rec_beta_vec << std::endl << std::endl;
-            // std::cout << true_beta_vec << std::endl;
             for (i = 0; i < w.params.Nt*2; i++) {
 
                 if (std::abs(rec_beta_vec[i] - true_beta_vec[i]) > 1e-10) {
