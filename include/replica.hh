@@ -17,13 +17,19 @@ namespace pticm {
             bool mh_consider (Problem& p, uint32_t index);
             // Accept a proposed MH move
             void mh_accept (Problem& p, uint32_t index);
+            std::list<double> ene_log;
+            bool log_energy;
+            size_t burn_in;
+            size_t sweep_counter;
         public:
             Replica(): energy(0), beta(0), flips(0) {};
             Replica(Problem& p, 
                     double _beta, 
                     const StateVector& init_state, 
                     const std::vector<double>& init_dE, 
-                    double _energy);
+                    double _energy,
+                    bool _log_ene = false,
+                    size_t _burn_in = 0);
             inline double get_energy() const {return energy;}
             inline void set_energy(double new_ene) {energy = new_ene;}
             inline const StateVector& get_state() const {return state;}
@@ -37,6 +43,7 @@ namespace pticm {
             inline std::vector<double>& get_dE() {return dE;}
             inline const StateVector& get_best_state() const { return best_state; }
             inline double get_best_ene() const { return best_ene; }
+            inline const std::list<double>& get_ene_log() const { return ene_log; }
 
             void exchange(Replica& other);
             void log();
@@ -45,8 +52,12 @@ namespace pticm {
                 dE = other.dE;
                 energy = other.energy;
                 best_ene = other.best_ene;
+                ene_log = other.ene_log;
+                burn_in = other.burn_in;
+                log_energy = other.log_energy;
                 beta = other.beta;
                 flips = other.flips;
+                sweep_counter = other.sweep_counter;
                 return *this;
             }
             void sweep (Problem& p);

@@ -6,7 +6,12 @@ namespace pticm {
             if (mh_consider(p, i)) {
                 mh_accept(p, i);
             }
+            if (log_energy && sweep_counter > burn_in) {
+                ene_log.push_back(energy);
+            }
+
         }
+        sweep_counter ++;
     };
     void  Replica::mh_accept (Problem& p, uint32_t index) {
         energy += dE[index];
@@ -37,11 +42,16 @@ namespace pticm {
                     double _beta, 
                     const StateVector& init_state, 
                     const std::vector<double>& init_dE,
-                    double _energy): beta(_beta), 
+                    double _energy,
+                    bool _log_ene,
+                    size_t _burn_in): beta(_beta), 
                                     flips(0), 
                                     state(init_state),
                                     dE(init_dE),
-                                    energy(_energy){
+                                    energy(_energy),
+                                    log_energy(_log_ene),
+                                    burn_in(_burn_in),
+                                    sweep_counter(0) {
         best_ene = DBL_MAX;
         best_state = init_state;
     };
