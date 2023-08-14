@@ -309,35 +309,33 @@ namespace pticm {
         double result = exp(-(beta_1 - beta_hist) * e + log(hist[ind]) - logpartition);
         return result;
     }
-    void get_pe_vec (const std::vector<unsigned>& hist, std::vector<double>& pE, double beta_hist, double beta_1, double logpartition, double estep) {
+    void get_pe_vec (const std::vector<double>& logdos, std::vector<double>& logpE, double emin, double beta, double logpartition, double estep) {
         size_t i = 0;
-        pE = std::vector<double>(hist.size());
-        for (size_t bin = 0; bin < hist.size(); bin++) {
-            pE[i++] = get_logpe(hist, bin, beta_hist, beta_1, logpartition, estep);
+        double e = emin;
+        for (size_t i = 0; i < logdos.size(); i++, e += estep) {
+            logpE[i] = logdos[i] - e * beta - logpartition;
         }
     }
-    double acceptance_rate (const std::vector<double>& logdos, 
+    double acceptance_rate (const std::vector<double>& logdos, const std::vector<double>& p1, std::vector<double>& p2,
                             double beta_1, double beta_2, double part_1, double part_2, double estep, double emin) {
         double r = 1;
-        double p1, p2, p12, e1, e2;
+        double p1i, p2i, p12, e1, e2;
         double norm1 = 0;
         double norm2 = 0;
         bool first = true;
         e1 = emin;
+        
         for (size_t i = 0; i < logdos.size(); i++, e1 += estep) {
-            p1 = logdos[i] - beta_1 * e1 - part_1;
-            // std::cout << p1 << " " << beta_1 << " " << part_1 << std::endl;
-            double sum1 = 0;
+            p1i = p1[i];
             e2 = emin;
             for (size_t j = 0; j < logdos.size(); j++, e2 += estep) {
-                // std::cout << e1 << " " << e2 << std::endl;
-                p2 = logdos[j] - beta_2 * e2 - part_2;
+                p2[j] = logdos[j] - beta_2 * e2 - part_2;
                 p12  = std::min(0.0, (beta_1 - beta_2) * ( e1 - e2 ));
                 if (first) {
                     first = false;
-                    r = p1 + p2 + p12;
+                    r = p1i + p2[j] + p12;
                 } else {
-                    r = logplusexp2(r, p1 + p2 + p12);
+                    r = logplusexp2(r, p1i + p2[j] + p12);
                 }
             }
         }
@@ -422,7 +420,9 @@ namespace pticm {
             // }
             std::cout << 0 <<"\t" << 1 / beta_start << " " << 0 << std::endl;
             double step = step_size;
-
+            std::vector<double> prev_logpE(logdos.size());
+            std::vector<double> curr_logpE(logdos.size());
+            get_pe_vec(logdos, prev_logpE, min_emin, beta_start, partition_last, estep);
             double change_lim = 0.1;
             for (size_t i = 1; i < num_temps; i++) {
                 double beta_prev = w.beta_values[i-1];
@@ -440,17 +440,17 @@ namespace pticm {
                                                      beta_curr,
                                                      min_emin, 
                                                      estep); 
-                    r_curr = acceptance_rate(logdos, 
+                    r_curr = acceptance_rate(logdos, prev_logpE,curr_logpE,
                                              beta_prev, beta_curr,
                                              partition_last, partition_curr, estep, min_emin);
-                    if (r_curr < 0.3) {
+                    if (r > r_curr && (r - r_curr) > 0.05) {
                         beta_curr = beta_orig;
                         step /= 2;
                         cont = true;
                         continue;
                     }
                     std::cout << i <<"\t" << 1 / beta_curr << " " << r_curr << std::endl;
-                    if (r_last > 0 && std::abs(r_curr - r_last) < 1e-2) {
+                    if (r_last > 0 && std::abs(r_curr - r_last) < 5e-2) {
                         step *= 2;
                         continue;
                     }
@@ -463,6 +463,7 @@ namespace pticm {
                     break;
                 }
                 partition_last = partition_curr;
+                prev_logpE = curr_logpE;
             }
         }
     };
