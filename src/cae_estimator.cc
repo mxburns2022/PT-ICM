@@ -1,26 +1,7 @@
 #include "cae_estimator.hh"
 
 namespace pticm {
-    #define BURN_IN 200
-    // construct a single temperature and record energy levels
-    void gather_samples(PTWorker& w, double beta, size_t num_samples, std::vector<double>& energy_log) {
-        assert(w.wid == 0);
-        uint64_t N = w.p.vcount();
-        StateVector init_state (w.p.vcount());
-        std::bernoulli_distribution bern(0.5);
-        for (size_t i = 0; i < N; i++) {
-            init_state[i] = bern(w.p.get_rng());
-        }
-        std::vector<double> dE(w.p.vcount(), 0);
-        double ene_start = w.p.calculate_dE(dE, init_state);
-        Replica r (w.p, beta, init_state, dE, ene_start, true, BURN_IN);
-        for (size_t i = 0; i < BURN_IN + num_samples; i++) {
-            r.sweep(w.p);
-        }
-        const std::list<double>& log = r.get_ene_log();
-        energy_log = std::vector(log.begin(), log.end());
-    };
-    size_t to_bin(const double e, const double emin, const double estep) {
+        inline size_t to_bin(const double e, const double emin, const double estep) {
         return static_cast<size_t>(std::floor((e - emin) / estep));
     }
     double e_bin(const size_t index, const double estep) {
@@ -29,6 +10,7 @@ namespace pticm {
     double e_bin(const size_t index, const double estep, const double emin) {
         return index * estep + emin;
     }
+    
     void make_histogram(const std::vector<double>& energy_log, size_t& nbins, double& emin, double& emax, double& estep, std::vector<uint32_t>& hist) {
         emin =  __DBL_MAX__;
         emax = -__DBL_MAX__;
@@ -58,6 +40,79 @@ namespace pticm {
         // }
         // printf("\n");
     }
+    #define BURN_IN 200
+    // construct a single temperature and record energy levels
+    void gather_samples(PTWorker& w, std::vector<std::vector<unsigned>>& histograms,
+                                     std::vector<double>& beta_values, 
+                                     std::vector<double>& emin_values,
+                                     double& max_emax,
+                                     double& min_emin,
+                                     double estep, 
+                                     size_t num_samples) {
+        assert(w.wid == 0);
+        uint64_t N = w.p.vcount();
+        StateVector init_state (w.p.vcount());
+        std::bernoulli_distribution bern(0.5);
+        std::vector<double> energy_log;
+        size_t Nt = histograms.size();
+        std::cout << Nt << std::endl;
+        std::vector<Replica> chain (Nt);
+        std::vector<unsigned> swap_order (Nt-1);
+        std::vector<unsigned> replica_inds (Nt);
+        size_t ind = 0;
+        std::vector<std::vector<double>> energylogs(Nt);
+        for (auto& r: chain) {
+            energylogs[ind].reserve(num_samples);
+            replica_inds[ind] = ind;
+            if (ind < Nt - 1)
+                swap_order[ind] = ind;
+            for (size_t i = 0; i < N; i++) {
+                init_state[i] = bern(w.p.get_rng());
+            }
+            std::vector<double> dE(w.p.vcount(), 0);
+            double ene_start = w.p.calculate_dE(dE, init_state);
+            r = Replica (w.p, beta_values[ind++], init_state, dE, ene_start, false, BURN_IN);
+        }
+        for (size_t i = 0; i < BURN_IN + num_samples; i++) {
+            for (size_t rind = 0; rind < Nt; rind++) {
+                Replica& r = chain[replica_inds[rind]];
+                r.sweep(w.p);
+                if (i >= BURN_IN) {
+                    energylogs[rind].push_back(r.get_energy());
+                }
+                ind++;
+            }
+
+            std::shuffle(swap_order.begin(), swap_order.end(), w.p.get_rng());
+            for (auto index: swap_order) {
+                Replica& r1 = chain[replica_inds[index]];
+                Replica& r2 = chain[replica_inds[index+1]];
+                double e1 = r1.get_energy();
+                double e2 = r2.get_energy();
+                double beta1 = beta_values[index];
+                double beta2 = beta_values[index+1];
+                double logboltz = (e1-e2) * (beta1-beta2);
+                double rngnum = w.p.rand_double();
+                if (log(rngnum) < logboltz) {
+                    std::swap(replica_inds[index], replica_inds[index+1]);
+                    r1.set_beta(beta2);
+                    r2.set_beta(beta1);
+                }
+            }
+   
+        }
+        max_emax = -__DBL_MAX__;
+        for (size_t i = 0; i < Nt;i++) {
+            size_t nbins = 0;
+            Replica& r = chain[replica_inds[i]];
+            double emax;
+            make_histogram(energylogs[i], nbins, emin_values[i], emax, estep, histograms[i]);
+            std::cout << histograms[i] << std::endl;
+            max_emax = std::max(emax, max_emax);
+            min_emin = std::min(emin_values[i], min_emin);
+        }
+    };
+
     inline
     double logplus (double x1, double x2) {
         double l1 = log(x1);
@@ -102,15 +157,18 @@ namespace pticm {
                          double beta, double estep, size_t n, size_t nbins) {
         double log_partition = 1;     
         bool first = true;     
-
+        /** The iterative formula for the partition functions is given by [1] eqn 8.31:
+         * Z_k = \sum_E
+         * 
+         * */
         for (size_t i = 0; i < nbins; i++) {
+            // get the energy of the ith bin
             double e = e_bin(i, estep, emin);
+            // initialize the numerator and denominator
             double lognumerator = 1;
             double logdenominator = 1;
             bool firstnum = true;
             bool firstdenom = true;
-            double numerator = 0;
-            double denominator = 0;
             for (size_t j = 0; j < hist.size(); j++) {
                 double logdenomterm = log(n) - partition_values[j] + (beta - beta_hist[j]) * e;
                 if (firstdenom) {
@@ -120,14 +178,12 @@ namespace pticm {
                 } else {
                     logdenominator = logplusexp2(logdenomterm, logdenominator);
                 }
-                denominator += n / exp(partition_values[j]) * exp(e*(beta-beta_hist[j]));
                 
                 double emin_j = emin_values[j];
                 if (e < emin_j)
                     continue;
                 size_t bins_j = hist[j].size();
                 size_t index = to_bin(e, emin_j, estep);
-                numerator += hist[j][index];
                 if (index >= bins_j) {
                     continue;
                 }
@@ -145,37 +201,27 @@ namespace pticm {
                 log_partition = lognumerator - logdenominator;
             } else {
                 log_partition = logplusexp2(log_partition, lognumerator - logdenominator);
-                
             }
         }
         return log_partition;
-    }
-    void get_partition_iterate (const std::vector<std::vector<unsigned>>& hist, 
-                                  const std::vector<double>& beta_hist,
-                                  const std::vector<double>& emin_values,
-                                  std::vector<double>& partition_functions, double estep, size_t n, size_t nbins) {
-        double max_diff;
-        for (size_t i = 0; i < hist.size(); i++) {
-            partition_functions[i] = 0;
-        }
-        double emin = *std::min_element(emin_values.begin(), emin_values.end());
-        do {
-            max_diff = 0;
+    }    
 
-            for (size_t i = 0; i < hist.size(); i++) {
-                double beta_i = beta_hist[i];
-                double temp_z = get_partition(hist, emin, beta_hist, emin_values, partition_functions, beta_i, estep, n, nbins );
-                max_diff += std::pow(
-                    (partition_functions[i] - temp_z) / std::abs(temp_z), 2);
-                partition_functions[i] = temp_z;
+    double partition_func(std::vector<double>& logdos, double beta, double emin, double estep) {
+        double logz = 1;
+        bool first = true;
+        for (size_t i = 0; i < logdos.size(); i++) {
+            double e = e_bin(i, estep, emin);
+            double logboltz = -beta * e;
+            if (first) {
+                first = false;
+                logz = logboltz + logdos[i];
+            }else {
+                logz = logplusexp2(logz, logboltz + logdos[i]);
             }
-            std::cout << max_diff << std::endl;
-            std::cout << partition_functions << std::endl;
-        } while(max_diff > 1e-7);
-
-        std::cout << partition_functions << std::endl;
-        getchar();
-    }
+        }
+      
+        return logz;
+    } 
     void calculate_dos (const std::vector<std::vector<unsigned>>& histograms, 
                        const std::vector<double>& partition_functions, 
                        const std::vector<double>& emin_values,
@@ -186,7 +232,7 @@ namespace pticm {
                        size_t n,
                        std::vector<double>& pE) {
         size_t nbins = static_cast<size_t>(std::ceil((max_emax - min_emin) / estep));
-        pE = std::vector<double> (nbins, 0);
+        pE = std::vector<double> (nbins);
         // loop over energy values
         double logn = std::log(n);
         double sum = 0;
@@ -219,36 +265,45 @@ namespace pticm {
                 } else if (!firstnum && histograms[j][index]) {
                     lognum = logplusexp(histograms[j][index], lognum);
                 }
-                std::cout << logdenom << " " << -partition_functions[j] << " " << -beta_hist[j] * e << " " << e << std::endl;
+                // std::cout << logdenom << " " << -partition_functions[j] << " " << -beta_hist[j] * e << " " << e << std::endl;
             }
             if (firstnum) {
+                pE[i] = -__DBL_MAX__;
                 continue;
             } else {
                 pE[i] = lognum - logdenom;
-                sum += exp(pE[i]);
-                std::cout << lognum << " " << logdenom <<" " << e  <<" " << pE[i] << std::endl;
                // getchar();
 
             }
         }
-        std::cout << sum << std::endl;
         //getchar();
     }
-    double partition_func(std::vector<double>& logdos, double beta, double emin, double estep) {
-        double logz = 1;
-        bool first = true;
-        for (size_t i = 0; i < logdos.size(); i++) {
-            double e = e_bin(i, estep, emin);
-            double logboltz = -beta * e;
-            if (first) {
-                first = false;
-                logz = logboltz + logdos[i];
-            }else {
-                logz = logplusexp2(logz, logboltz + logdos[i]);
-            }
+    void get_partition_iterate (const std::vector<std::vector<unsigned>>& hist, 
+                                  const std::vector<double>& beta_hist,
+                                  const std::vector<double>& emin_values,
+                                  std::vector<double>& logdos,
+                                  std::vector<double>& partition_functions, double estep, size_t n, size_t nbins,
+                                  double max_emax) {
+        double max_diff;
+        for (size_t i = 0; i < hist.size(); i++) {
+            partition_functions[i] = 0;
         }
-        return logz;
+        double emin = *std::min_element(emin_values.begin(), emin_values.end());
+        do {
+            max_diff = 0;
+            calculate_dos(hist, partition_functions, emin_values, beta_hist, estep, emin, max_emax, n, logdos);
+            for (size_t i = 0; i < hist.size(); i++) {
+                double beta_i = beta_hist[i];
+                double temp_z = partition_func(logdos, beta_i, emin, estep);
+                max_diff += std::pow(
+                    std::abs(partition_functions[i] - temp_z) / std::abs(temp_z), 2);
+                partition_functions[i] = temp_z;
+            }
+            std::cout << partition_functions << std::endl;
+            std::cout << max_diff << std::endl;
+        } while(max_diff > 1e-6);
     }
+   
     double get_logpe (const std::vector<unsigned>& hist, size_t ind, double beta_hist, double beta_1, double logpartition, double estep) {
         double e = e_bin(ind, estep);
         double result = exp(-(beta_1 - beta_hist) * e + log(hist[ind]) - logpartition);
@@ -261,20 +316,20 @@ namespace pticm {
             pE[i++] = get_logpe(hist, bin, beta_hist, beta_1, logpartition, estep);
         }
     }
-    double acceptance_rate (size_t nbins, 
-                            const std::vector<double>& logdos, 
+    double acceptance_rate (const std::vector<double>& logdos, 
                             double beta_1, double beta_2, double part_1, double part_2, double estep, double emin) {
         double r = 1;
         double p1, p2, p12, e1, e2;
         double norm1 = 0;
         double norm2 = 0;
         bool first = true;
-        for (size_t i = 0; i < logdos.size(); i++) {
-            e1 = e_bin(i, estep, emin);
+        e1 = emin;
+        for (size_t i = 0; i < logdos.size(); i++, e1 += estep) {
             p1 = logdos[i] - beta_1 * e1 - part_1;
             // std::cout << p1 << " " << beta_1 << " " << part_1 << std::endl;
-            for (size_t j = 0; j < logdos.size(); j++) {
-                e2 = e_bin(j, estep, emin);
+            double sum1 = 0;
+            e2 = emin;
+            for (size_t j = 0; j < logdos.size(); j++, e2 += estep) {
                 // std::cout << e1 << " " << e2 << std::endl;
                 p2 = logdos[j] - beta_2 * e2 - part_2;
                 p12  = std::min(0.0, (beta_1 - beta_2) * ( e1 - e2 ));
@@ -289,21 +344,31 @@ namespace pticm {
         return exp(r);
     }
     // Given the samples gathered in the sample stage, iteratively calculate an array of beta values such that P(\beta_i<->\beta_{i+1}) = r 
-    void get_beta(PTWorker& w, double beta_hist, 
-                  double beta_0, double step_size, 
-                  double r, size_t num_temps, size_t num_samples){
+    void get_beta(PTWorker& w,
+                double estep, double step_size, 
+                double r, size_t num_samples){
         if (w.wid == 0) {
+            size_t num_temps = w.params.Nt;
             assert(num_temps >= 1);
-            size_t num_hist = 5;
+            size_t num_hist = num_temps;
             std::vector<std::vector<unsigned>> histograms(num_hist);
             std::vector<double> hist_betas(num_hist);
             std::vector<double> emin_values(num_hist);
-            double beta_start = 1 / 1.8;
-            double beta_end = 1 / 2.6;
+            double beta_start;
+            double beta_end;
+            if (w.params.inverse) {
+                beta_start = w.params.T0;
+                beta_end = w.params.T1;
+            } else {
+                beta_start = 1 / w.params.T0;
+                beta_end = 1 / w.params.T1;
+            }
+            if (beta_start < beta_end) {
+                std::swap(beta_start, beta_end);
+            }
             double beta_step = (beta_end - beta_start) / (hist_betas.size() - 1);
             std::vector<double> ene_samples;
             std::vector<unsigned> hist;
-            double estep = 1;
             double emin, emax;
             size_t nbins = 0;
             double beta = beta_start;
@@ -312,66 +377,91 @@ namespace pticm {
             // get the histogram samples for each temperature
             for (size_t i = 0; i < num_hist; i++, beta += beta_step)
             {
-                nbins = 0;
                 hist_betas[i] = beta;
-                gather_samples(w, beta, num_samples, ene_samples);
-                make_histogram(ene_samples, nbins, emin_values[i], emax, estep, histograms[i]);
-                min_emin = std::min(emin_values[i], min_emin);
-                max_emax = std::max(emax, max_emax);
-
             }
+            gather_samples(w, 
+                           histograms, 
+                           hist_betas, 
+                           emin_values, 
+                           max_emax, 
+                           min_emin, 
+                           estep, 
+                           num_samples);
             // Calculate the partition functions (stored in log form)
             std::vector<double> partition_functions(num_hist);
             size_t n = std::accumulate(histograms[0].begin(), histograms[0].end(), 0, std::plus<unsigned>());
             size_t total_bins = static_cast<double>(std::ceil((max_emax - min_emin) / estep));
-            get_partition_iterate(histograms, hist_betas, emin_values, partition_functions, estep, n, total_bins);
-            
-            w.beta_values = new double[num_temps];
-            w.beta_values[0] = beta_0;
             std::vector<double> logdos;
-            calculate_dos(histograms, partition_functions, emin_values, hist_betas, estep, min_emin, max_emax, n, logdos);
+            get_partition_iterate(histograms, 
+                                  hist_betas, 
+                                  emin_values, 
+                                  logdos,
+                                  partition_functions, 
+                                  estep, n, total_bins, max_emax);
+            
+            w.beta_values[0] = beta_start;
             double partition_last =  partition_func(logdos, 
-                                                    beta_0,
+                                                    beta_start,
                                                     min_emin, 
                                                     estep);
-            std::vector<double> uvalues = std::vector<double>(100);
-            double T0 = 1.8;
-            double T1 = 2.6;
-            double tstep = ( T1 - T0 ) / ( uvalues.size() - 1 );
-            for (size_t i = 0; i < uvalues.size(); i ++, T0+=tstep) {
-                double partition = partition_func(logdos, 1 / T0, min_emin, estep);
-                double e = min_emin;
-                double u = 0;
-                for (size_t j = 1; j < logdos.size(); j++, e+=estep) {
-                    double logboltzmann = -(1/T0) * e;
-                    // std::cout << logboltzmann << " " <<  logdos[j] << " " <<  partition << std::endl;
-                    // std::cout << e << std::endl;
-                    u = e * exp(logdos[j] + logboltzmann - partition);
-                }
-                std::cout << u << std::endl;
-            }
-            return;
+            // std::vector<double> uvalues = std::vector<double>(100);
+            // double T0 = 1.8;
+            // double T1 = 2.6;
+            // double tstep = ( T1 - T0 ) / ( uvalues.size() - 1 );
+            // for (size_t i = 0; i < uvalues.size(); i ++, T0+=tstep) {
+            //     double partition = partition_func(logdos, 1 / T0, min_emin, estep);
+            //     double e = min_emin;
+            //     double u = e * exp(logdos[0] + (-(1/(T0)) * e) - partition);
+            //     e += estep;
+            //     for (size_t j = 1; j < logdos.size(); j++, e+=estep) {
+            //         double logboltzmann = -(1/(T0)) * e;
+            //         // std::cout << e << std::endl;
+            //         u += e * exp(logdos[j] + logboltzmann - partition);
+            //     }
+            //     std::cout << u / (w.p.vcount()) << std::endl;
+            // }
+            std::cout << 0 <<"\t" << 1 / beta_start << " " << 0 << std::endl;
+            double step = step_size;
+
+            double change_lim = 0.1;
             for (size_t i = 1; i < num_temps; i++) {
-                
                 double beta_prev = w.beta_values[i-1];
                 double& beta_curr = w.beta_values[i];
                 beta_curr = beta_prev;
                 double partition_curr;
                 double r_curr;
+                double r_last = -1;
+                bool cont = false;
                 do {
-                    beta_curr -= step_size; 
+                    cont = false;
+                    double beta_orig = beta_curr;
+                    beta_curr = 1 / (1 / beta_curr + step);
                     partition_curr =  partition_func(logdos, 
                                                      beta_curr,
                                                      min_emin, 
                                                      estep); 
-                    r_curr = acceptance_rate(hist.size(),
-                                             logdos, 
+                    r_curr = acceptance_rate(logdos, 
                                              beta_prev, beta_curr,
                                              partition_last, partition_curr, estep, min_emin);
-                    std::cout << 1 / beta_curr << " " << r_curr << std::endl;
-                    // std::cout << "\t" << beta_curr << " " << r_curr << std::endl;
-
-                } while(r_curr > r);
+                    if (r_curr < 0.3) {
+                        beta_curr = beta_orig;
+                        step /= 2;
+                        cont = true;
+                        continue;
+                    }
+                    std::cout << i <<"\t" << 1 / beta_curr << " " << r_curr << std::endl;
+                    if (r_last > 0 && std::abs(r_curr - r_last) < 1e-2) {
+                        step *= 2;
+                        continue;
+                    }
+                    r_last = r_curr;
+                std::cout << i <<"\t" << 1 / beta_curr << " " << r_curr << std::endl;
+                } while((r_curr > r && beta_curr > beta_end) || cont);
+                std::cout << i <<"\t" << 1 / beta_curr << " " << r_curr << std::endl;
+                if (beta_curr <= beta_end) {
+                    std::cout << beta_end << std::endl;
+                    break;
+                }
                 partition_last = partition_curr;
             }
         }
@@ -385,17 +475,23 @@ int main(int argc, char** argv) {
     w.p = pticm::Problem(argv[1]);
     size_t num_temps = 19;
     size_t num_samples = 6000;
-    double beta_0 = 1 / 1.92;
+    double beta_0 = 1.0 / 10;
+    double beta_max = 1.0 / 0.1;
+    double replicas_max = 30;
     double beta_hist = 1 / 2.2;
-    double step_size = 1e-3;
+    double step_size = -0.1;
     std::vector<double> log;
-    size_t nbins = 100;
+    size_t nbins = 30;
     double emin,emax,estep;
+    estep = 1;
     std::vector<uint32_t> hist(nbins);
-
+    w.params.T0 = 0.1;
+    w.params.inverse = true;
+    w.params.T1 = 10;
+    w.params.Nt = 30;
     // pticm::make_histogram(log, nbins, emin, emax, estep, hist);
     // pticm::get_partition(hist, beta_hist, 2.0, estep);
-    pticm::get_beta(w, beta_hist, beta_0, step_size, 0.5, 19, 1000);
+    pticm::get_beta(w, estep, step_size, 0.5, 500);
     // std::cout << pticm::get_partition();
     // pticm::get_beta(w, beta_hist, beta_0, step_size, 0.5, num_temps, num_samples);
 }

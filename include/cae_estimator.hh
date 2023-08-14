@@ -20,7 +20,7 @@ namespace pticm {
      * Single histogram just runs at one temperature, and is much simpler to reconstruct. It'll go off track, but it should be "good enough"
     */
     // construct a single temperature and record energy levels
-    void gather_samples(PTWorker& w, double beta, size_t num_samples);
+    // void gather_samples(PTWorker& w, double beta, size_t num_samples);
     // Given the samples gathered in the sample stage, iteratively calculate an array of beta values such that P(\beta_i<->\beta_{i+1}) = r 
     void get_beta(PTWorker& w, double beta_hist, double beta_0, double step_size, double r, size_t num_temps, size_t num_samples);
 }; // namespace pticm

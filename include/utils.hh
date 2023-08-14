@@ -27,5 +27,8 @@ namespace pticm {
                        double T1, 
                        uint64_t num_temp, 
                        bool inverse);
+    void get_beta(PTWorker& w,
+                double estep, double step_size, 
+                double r, size_t num_samples);
 } 
 #endif

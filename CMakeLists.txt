@@ -13,12 +13,25 @@ file( GLOB ESTIM_SOURCES estimator/*.cc )
 file( GLOB TEST_SOURCES src/unittests/*.cc )
 set ( execname pt_icm )
 add_executable(${PROJECT_NAME} ${SOURCES})
+if (${CMAKE_BUILD_TYPE} STREQUAL "Release")
+  target_compile_options(${PROJECT_NAME} BEFORE PUBLIC -O3 -fopenmp)
+endif()
+if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+  target_compile_options(${PROJECT_NAME} BEFORE PUBLIC -g -ggdb)
+endif()
+add_compile_options(-Wall -pedantic)
 target_include_directories(${PROJECT_NAME} BEFORE PRIVATE include)
 target_link_libraries(${PROJECT_NAME} PUBLIC boost_program_options)
-
-# Build file for cae standalone
 add_library(replica STATIC src/replica.cc src/problem.cc src/utils.cc)
 target_include_directories(replica BEFORE PRIVATE include)
 add_compile_definitions(BOOST)
-add_compile_definitions(WHOLE)
+target_compile_definitions(${PROJECT_NAME} PUBLIC WHOLE)
+
+add_executable(cae src/cae_estimator.cc)
+target_link_libraries(cae replica)
+target_include_directories(cae BEFORE PRIVATE include)
+target_compile_options(cae BEFORE PUBLIC -O3 -Wall -pedantic)
+
+# Build file for cae standalone
+
 # Add source files

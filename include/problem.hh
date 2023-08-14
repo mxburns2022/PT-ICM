@@ -82,6 +82,7 @@ namespace pticm {
                 M = other.M;
                 seed = other.seed;
                 rng_engine = other.rng_engine;
+                sparse = other.sparse;
                 unif = other.unif;
                 burn_in = other.burn_in;
                 return *this;

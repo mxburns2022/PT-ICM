@@ -26,8 +26,11 @@ namespace pticm {
         w.loc_r = w.wid != w.numw - 1 ? w.worker_r : w.last_r;
         
         read_problem(w, problem_path);
+        write_update(w, "Initializing Temperatures", 1);
         initialize_temperatures(w);
+        write_update(w, "Initializing Replicas", 1);
         initialize_replicas(w);
+        write_update(w, "Initializing Exchanges", 1);
         initialize_replica_exchanges(w);
         write_update(w, "Starting MCMC loop", 1);
         MPI_Barrier(MPI_COMM_WORLD);

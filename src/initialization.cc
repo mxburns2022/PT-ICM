@@ -22,6 +22,7 @@ namespace pticm {
         MPI_Bcast(&is_sparse, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
         MPI_Bcast(&N, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
         MPI_Bcast(&M, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+        std::cout << is_sparse << std::endl;
         if (is_sparse) {
             weights = std::make_unique<double[]>(M);
             src = std::make_unique<int[]>(M);
@@ -33,7 +34,11 @@ namespace pticm {
             MPI_Bcast(src.get(), M, MPI_INT, 0, MPI_COMM_WORLD);
             MPI_Bcast(dst.get(), M, MPI_INT, 0, MPI_COMM_WORLD);
         } else {
+            std::cout << N * N << std::endl;
             weights = std::make_unique<double[]>(N * N);
+            if (w.wid == 0) {
+                w.p.serialize(weights.get(), NULL, NULL);
+            }
             MPI_Bcast(weights.get(), N*N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         }
         if (w.wid != 0){
@@ -52,12 +57,18 @@ namespace pticm {
         std::bernoulli_distribution init_gen(0.5);
         // }
         // MPI_Bcast(init_state.get(), w.p.vcount(), MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
+        LINECHECK
+        std::cout << w.wid << " " << w.loc_r <<" " << w.p.vcount() << std::endl;
         w.replicas = std::vector<Replica>(w.loc_r);
+        LINECHECK
         StateVector init_vector (w.p.vcount());
+        LINECHECK
+        fflush(stdout);
         for (size_t i = 0; i < w.loc_r; i++) {
             for (uint64_t j = 0; j < w.p.vcount(); j++) {
                 init_vector[j] = init_gen(w.p.get_rng());
             }
+            LINECHECK
             std::vector<double> dE(w.p.vcount(), 0);
             double init_ene = w.p.calculate_dE(dE, init_vector); 
             w.replicas[i] = Replica(w.p, w.beta_values_local[i], init_vector, dE, init_ene);
@@ -99,19 +110,23 @@ namespace pticm {
             w.replica_workers = new int[par.Nt * 2];
             w.chain_index_global = new uint8_t [par.Nt * 2];
             uint64_t ind = 0;
+            LINECHECK
             for (uint64_t i = 0; i < w.numw - 1; i++) {
                 for (uint64_t j = 0; j < w.worker_r; j++, ind++) {
                     w.replica_workers[ind] = i;
                     w.chain_index_global[ind] = ind >= par.Nt; 
                 }
             }
+            LINECHECK
             for (uint64_t j = 0; j < w.last_r; j++, ind++) {
                 w.replica_workers[ind] = w.numw - 1;
                 w.chain_index_global[ind] = ind >= par.Nt; 
             }
             // Determine the starting beta values for each replica
             w.beta_values = new double[par.Nt * 2];
-            beta_linspace(w.beta_values, w.params.T0, w.params.T1, par.Nt, w.params.inverse);
+        
+            get_beta(w, 0.5, 1e-2, 0.5, 1000);
+            // beta_linspace(w.beta_values, w.params.T0, w.params.T1, par.Nt, w.params.inverse);
             w.Nc = 0;
             for (size_t i = 0; i < par.Nt; i++) {
                 if (w.beta_values[i] > w.characteristic_scale) {
@@ -119,9 +134,12 @@ namespace pticm {
                 }
                 w.Nc ++;
             }
+            LINECHECK
             std::memcpy(w.beta_values + par.Nt, w.beta_values, par.Nt * sizeof(double));
             // copy to the beta values for worker 0
+            LINECHECK
             std::memcpy(w.chain_index_local, w.chain_index_global, w.loc_r * sizeof(uint8_t));
+            LINECHECK
             std::memcpy(w.beta_values_local, w.beta_values, w.loc_r * sizeof(double));
             // send local beta values to each other worker
             for (uint64_t i = 1; i < w.numw - 1; i++) {
