@@ -5,11 +5,11 @@
 namespace pticm {
     class Replica {
         private:
-            StateVector state; // Current replica state in the problem state bank
-            std::vector<double> dE; // deltaE pointer, will indicate location in the problem dE bank
-            uint32_t flips; // Number of flips (optional counter)
             double energy; // Current configuration energy
             double beta; // Inverse temperature of this replica
+            uint32_t flips; // Number of flips (optional counter)
+            StateVector state; // Current replica state in the problem state bank
+            std::vector<double> dE; // deltaE pointer, will indicate location in the problem dE bank
             uint64_t offset; // 
             double best_ene;
             StateVector best_state;

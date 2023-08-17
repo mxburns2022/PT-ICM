@@ -5,7 +5,7 @@ namespace pticm {
     void Problem::serialize(double* weights, int* src, int* dest) {
         if (sparse) {
             uint64_t ind = 0;
-            int srcnode = 0;
+            uint64_t srcnode = 0;
             for (auto& i : formulation_sparse) {
                 for (Edge e: i) {
                     if (srcnode < e.dest){
@@ -20,13 +20,11 @@ namespace pticm {
             }
             assert(ind == M);
         } else {
-            printf("DENSE\n");
             double* curr_val = weights;
             for (auto& i : formulation) {
                 std::memcpy(curr_val, i.data(), N * sizeof(double));
                 curr_val += N;
             }
-            getchar();
         }
     };
 
@@ -150,10 +148,8 @@ namespace pticm {
     }
     // Incremental Isakov step
     void Problem::incremental_dE(std::vector<double>& dE, const StateVector& s, uint32_t index) const {
-        double local_field, ene_term;
         dE[index] *= -1;
         int8_t ival = sign(s[index]);
-        local_field = 0;
         if (sparse) {
             const std::list<Edge>& iedges = formulation_sparse.at(index);
             for (auto e: iedges) {

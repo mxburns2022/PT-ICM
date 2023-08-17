@@ -24,7 +24,6 @@ namespace pticm {
         }
         // local problem declaration
         w.loc_r = w.wid != w.numw - 1 ? w.worker_r : w.last_r;
-        
         read_problem(w, problem_path);
         write_update(w, "Initializing Temperatures", 1);
         initialize_temperatures(w);

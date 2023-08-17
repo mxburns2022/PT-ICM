@@ -44,14 +44,14 @@ namespace pticm {
                     const std::vector<double>& init_dE,
                     double _energy,
                     bool _log_ene,
-                    size_t _burn_in): beta(_beta), 
-                                    flips(0), 
-                                    state(init_state),
-                                    dE(init_dE),
-                                    energy(_energy),
-                                    log_energy(_log_ene),
-                                    burn_in(_burn_in),
-                                    sweep_counter(0) {
+                    size_t _burn_in): energy(_energy),
+                                      beta(_beta), 
+                                      flips(0), 
+                                      state(init_state),
+                                      dE(init_dE),
+                                      log_energy(_log_ene),
+                                      burn_in(_burn_in),
+                                      sweep_counter(0) {
         best_ene = DBL_MAX;
         best_state = init_state;
     };

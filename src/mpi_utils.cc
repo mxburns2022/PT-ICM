@@ -186,7 +186,6 @@ namespace pticm {
         }
         MPI_Bcast(&correct, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
         if (!correct) {
-            std::cout << correct << std::endl;
             MPI_Finalize();
             exit(1);
         }
@@ -199,7 +198,7 @@ namespace pticm {
             }
         }
     
-        printf("Worker %d %d\n", w.wid, __LINE__);
+        // printf("Worker %d %d\n", w.wid, __LINE__);
         fflush(stdout);
         exit(-1);
     }
@@ -207,15 +206,15 @@ namespace pticm {
 
     void free_worker (PTWorker& w){
         if (w.wid == 0) {
-            delete w.beta_values;
-            delete w.energy_values_global;
-            delete w.chain_1_exchange_order;
-            delete w.chain_2_exchange_order;
-            delete w.beta_indices;
-            delete w.replica_workers;
+            delete [] w.beta_values;
+            delete [] w.energy_values_global;
+            delete [] w.chain_1_exchange_order;
+            delete [] w.chain_2_exchange_order;
+            delete [] w.beta_indices;
+            delete [] w.replica_workers;
         }
-        delete w.energy_values_local;
-        delete w.beta_values_local;
+        delete [] w.energy_values_local;
+        delete [] w.beta_values_local;
 
     };
 } // namespace pticm

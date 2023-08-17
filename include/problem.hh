@@ -65,7 +65,7 @@ namespace pticm {
             uint64_t get_burn_in() const {return burn_in;}
             const std::list<Edge>& get_sparse_neighbors(uint64_t ind) const {return formulation_sparse[ind];}
             const std::vector<double>& get_dense_neighbors(uint64_t ind) const {return formulation[ind];}
-            bool is_sparse () const {return N;}
+            bool is_sparse () const {return sparse;}
             double calculate_dE (std::vector<double>& dE, const StateVector& s) const;
             const Matrix& get_formulation() const {return formulation;}
             const SparseMatrix& get_formulation_sparse() const {return formulation_sparse;}

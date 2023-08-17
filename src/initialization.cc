@@ -10,6 +10,7 @@ namespace pticm {
         std::unique_ptr<int[]> dst;
         if (w.wid == 0) {
             Problem& p = w.p;
+            
             p = Problem(problem_path,
                         w.params.seed, 
                         w.params.burn_in);
@@ -21,7 +22,6 @@ namespace pticm {
         MPI_Bcast(&is_sparse, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
         MPI_Bcast(&N, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
         MPI_Bcast(&M, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
-        std::cout << is_sparse << std::endl;
         if (is_sparse) {
             weights = std::make_unique<double[]>(M);
             src = std::make_unique<int[]>(M);
@@ -33,7 +33,6 @@ namespace pticm {
             MPI_Bcast(src.get(), M, MPI_INT, 0, MPI_COMM_WORLD);
             MPI_Bcast(dst.get(), M, MPI_INT, 0, MPI_COMM_WORLD);
         } else {
-            std::cout << N * N << std::endl;
             weights = std::make_unique<double[]>(N * N);
             if (w.wid == 0) {
                 w.p.serialize(weights.get(), NULL, NULL);
@@ -56,7 +55,6 @@ namespace pticm {
         std::bernoulli_distribution init_gen(0.5);
         // }
         // MPI_Bcast(init_state.get(), w.p.vcount(), MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
-        std::cout << w.wid << " " << w.loc_r <<" " << w.p.vcount() << std::endl;
         w.replicas = std::vector<Replica>(w.loc_r);
         StateVector init_vector (w.p.vcount());
         fflush(stdout);
@@ -72,6 +70,7 @@ namespace pticm {
     void initialize_replica_exchanges(PTWorker& w) {
         if (w.wid == 0) {
             size_t Nt = w.params.Nt;
+
             w.energy_values_global = new double [Nt * 2];
             w.chain_1_exchange_order = new uint32_t [Nt - 1];
             w.chain_2_exchange_order = new uint32_t [Nt - 1];
@@ -95,11 +94,32 @@ namespace pticm {
     // initialize worker data
     void initialize_temperatures(PTWorker& w) {
         Parameters& par = w.params;
+        if (w.wid == 0) {
+            w.beta_values = new double[par.Nt * 2];
+            get_beta(w, 0.5, 1e-1, 0.4, 1000);
+        }
+        MPI_Bcast((void*)&w.params.Nt, 1, MPI_UINT64_T, 0, MPI_COMM_WORLD);
+        uint64_t Nt = w.params.Nt;
+        // Number of replicas to be handled by each worker
+        if (Nt * 2 < w.numw) {
+            if (w.wid == 0)
+                fprintf(stderr,
+                "%sERROR:%s %d workers created for %ld total replicas. Please call with fewer processes\n", RED, RESET,w.numw, Nt * 2);
+            MPI_Finalize();
+            exit(0);
+        } 
+        w.worker_r = Nt * 2 / w.numw;
+        uint64_t regular = w.worker_r * w.numw;
+        w.last_r = w.worker_r;
+        if ((Nt * 2) != regular) {
+            w.last_r += (Nt * 2) - regular; 
+        }
         w.beta_values_local = new double[w.loc_r];
         w.chain_index_local = new uint8_t[w.loc_r];
         // std::cout <<  w.wid << " " << w.loc_r << std::endl;
         // getchar();
-        // Distribute the replicas to each worker
+        // local problem declaration
+        w.loc_r = w.wid != w.numw - 1 ? w.worker_r : w.last_r;
         if (w.wid == 0) {
             w.swaps = 0;
             w.replica_workers = new int[par.Nt * 2];
@@ -116,9 +136,7 @@ namespace pticm {
                 w.chain_index_global[ind] = ind >= par.Nt; 
             }
             // Determine the starting beta values for each replica
-            w.beta_values = new double[par.Nt * 2];
         
-            get_beta(w, 0.5, 1e-1, 0.4, 1000);
             // beta_linspace(w.beta_values, w.params.T0, w.params.T1, par.Nt, w.params.inverse);
             w.Nc = 0;
             for (size_t i = 0; i < par.Nt; i++) {

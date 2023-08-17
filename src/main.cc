@@ -18,8 +18,8 @@ int parse_args (int argc,
     params.seed = time(NULL);
     params.burn_in = 500;
     params.pts = 1000;
-    params.T0 = 1.92;
-    params.T1 = 2.6903;
+    params.T0 = 0.6;
+    params.T1 = 2.8;
     params.verbosity = 0;
 #ifdef BOOST
     po::options_description desc("Allowed options");
