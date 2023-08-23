@@ -206,15 +206,23 @@ namespace pticm {
 
     void free_worker (PTWorker& w){
         if (w.wid == 0) {
+            
             delete [] w.beta_values;
+            
             delete [] w.energy_values_global;
+            
             delete [] w.chain_1_exchange_order;
+            
             delete [] w.chain_2_exchange_order;
+            
             delete [] w.beta_indices;
+            
             delete [] w.replica_workers;
+            
         }
-        delete [] w.energy_values_local;
-        delete [] w.beta_values_local;
+        // TODO: Figure out why these can cause memory issues
+        // delete [] w.energy_values_local;
+        // delete [] w.beta_values_local;
 
     };
 } // namespace pticm

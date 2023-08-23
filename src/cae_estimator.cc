@@ -1,4 +1,5 @@
 #include "cae_estimator.hh"
+#include "utils.hh"
 
 namespace pticm {
         inline size_t to_bin(const double e, const double emin, const double estep) {
@@ -222,7 +223,7 @@ namespace pticm {
                     std::abs(partition_functions[i] - temp_z) / std::abs(temp_z), 2);
                 partition_functions[i] = temp_z;
             }
-        } while(max_diff > 1e-6);
+        } while(max_diff > 1e-7);
     }
    
     double get_logpe (const std::vector<unsigned>& hist, size_t ind, double beta_hist, double beta_1, double logpartition, double estep) {
@@ -236,7 +237,7 @@ namespace pticm {
             logpE[i] = logdos[i] - e * beta - logpartition;
         }
     }
-    double acceptance_rate (const std::vector<double>& logdos, const std::vector<double>& p1, std::vector<double>& p2,
+    double acceptance_rate (const std::vector<double>& logdos, const std::vector<double>& p1, const std::vector<double>& p2,
                             double beta_1, double beta_2, double part_1, double part_2, double estep, double emin) {
         double r = 1;
         double p1i, p12, e1, e2;
@@ -246,11 +247,18 @@ namespace pticm {
         #pragma GCC unroll 100
         for (size_t i = 0; i < logdos.size(); i++, e1 += estep) {
             p1i = p1[i];
-            e2 = emin;
-            #pragma GCC unroll 100
-            for (size_t j = 0; j < logdos.size(); j++, e2 += estep) {
-                p2[j] = logdos[j] - beta_2 * e2 - part_2;
-                p12  = std::min(0.0, (beta_1 - beta_2) * ( e1 - e2 ));
+            // assume beta_2 < beta_1, hence swap probability will always be 1 for e2 < e1
+            for (size_t j = 0; j < i; j++, e2 += estep) {
+                if (first) {
+                    first = false;
+                    r = p1i + p2[j];
+                } else {
+                    r = logplusexp2(r, p1i + p2[j]);
+                }
+            }
+            e2 = e1 + estep;
+            for (size_t j = i+1; j < logdos.size(); j++, e2 += estep) {
+                p12  = (beta_1 - beta_2) * ( e1 - e2 );
                 if (first) {
                     first = false;
                     r = p1i + p2[j] + p12;
@@ -295,6 +303,7 @@ namespace pticm {
             {
                 hist_betas[i] = beta;
             }
+            write_update(w, "Gathering initial samples...", 1);
             gather_samples(w, 
                            histograms, 
                            hist_betas, 
@@ -308,6 +317,8 @@ namespace pticm {
             size_t n = std::accumulate(histograms[0].begin(), histograms[0].end(), 0, std::plus<unsigned>());
             size_t total_bins = static_cast<double>(std::ceil((max_emax - min_emin) / estep));
             std::vector<double> logdos;
+
+            write_update(w, "Determining partition functions...", 1);
             get_partition_iterate(histograms, 
                                   hist_betas, 
                                   emin_values, 
@@ -323,6 +334,8 @@ namespace pticm {
             double step = step_size;
             std::vector<double> prev_logpE(logdos.size());
             std::vector<double> curr_logpE(logdos.size());
+
+            write_update(w, "Selecting CAE temperatures...", 1);
             get_pe_vec(logdos, prev_logpE, min_emin, beta_start, partition_last, estep);
             size_t i;
             for (i = 1; i < num_temps; i++) {
@@ -341,7 +354,8 @@ namespace pticm {
                                                      beta_curr,
                                                      min_emin, 
                                                      estep); 
-                    r_curr = acceptance_rate(logdos, prev_logpE,curr_logpE,
+                    get_pe_vec(logdos, curr_logpE, min_emin, beta_curr, partition_curr, estep);
+                    r_curr = acceptance_rate(logdos, prev_logpE, curr_logpE,
                                              beta_prev, beta_curr,
                                              partition_last, partition_curr, estep, min_emin);
                     if (r > r_curr && (r - r_curr) > 0.05) {
@@ -353,6 +367,9 @@ namespace pticm {
                     if (r_last > 0 && std::abs(r_curr - r_last) < 5e-2) {
                         step *= 2;
                         continue;
+                    }
+                    if (w.params.verbosity >= 2) {
+                        printf("%f->%f, %f, %f\n", beta_prev, beta_curr, r_curr, step);
                     }
                     r_last = r_curr;
                 } while((r_curr > r && beta_curr > beta_end) || cont);

@@ -119,6 +119,8 @@ namespace pticm {
             std::cout << best_state << std::endl;
             std::cout << std::vector<double> (w.beta_values, w.beta_values + w.params.Nt) << "\n";
         }
+        std::cout << w.wid << std::endl;
+        MPI_Barrier(MPI_COMM_WORLD);
         free_worker(w);
 
     };

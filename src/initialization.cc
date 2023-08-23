@@ -88,7 +88,7 @@ namespace pticm {
             std::shuffle(w.chain_1_exchange_order, w.chain_1_exchange_order + Nt - 1, w.p.get_rng());
             std::shuffle(w.chain_2_exchange_order, w.chain_2_exchange_order + Nt - 1, w.p.get_rng());
         }
-        w.energy_values_local = new double[w.loc_r];
+        w.energy_values_local = new double [w.loc_r];
     };
 
     // initialize worker data
@@ -96,7 +96,7 @@ namespace pticm {
         Parameters& par = w.params;
         if (w.wid == 0) {
             w.beta_values = new double[par.Nt * 2];
-            get_beta(w, 0.5, 1e-1, 0.4, 1000);
+            get_beta(w, 2, 1e-1, 0.3, 5000);
         }
         MPI_Bcast((void*)&w.params.Nt, 1, MPI_UINT64_T, 0, MPI_COMM_WORLD);
         uint64_t Nt = w.params.Nt;
@@ -136,7 +136,7 @@ namespace pticm {
                 w.chain_index_global[ind] = ind >= par.Nt; 
             }
             // Determine the starting beta values for each replica
-        
+
             // beta_linspace(w.beta_values, w.params.T0, w.params.T1, par.Nt, w.params.inverse);
             w.Nc = 0;
             for (size_t i = 0; i < par.Nt; i++) {
@@ -163,12 +163,9 @@ namespace pticm {
                 uint8_t* start_chain_pointer = (w.numw - 1) * w.worker_r + w.chain_index_global;
                 MPI_Send(start_chain_pointer, w.last_r, MPI_UNSIGNED_CHAR, w.numw - 1, 0, MPI_COMM_WORLD);
             }
-
-            // std::cout << w.wid << " chain indices: " <<std::vector<uint8_t> (w.chain_index_global, w.chain_index_global + w.params.Nt * 2) << std::endl;
         } else {
             MPI_Recv(w.beta_values_local, w.loc_r, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, &w.stat);
             MPI_Recv(w.chain_index_local, w.loc_r, MPI_UNSIGNED_CHAR, 0, 0, MPI_COMM_WORLD, &w.stat);
-            // std::cout << w.wid << " chain indices: " <<std::vector<uint8_t> (w.chain_index_local, w.chain_index_local + w.loc_r) << std::endl;
         }
         MPI_Bcast(&w.Nc, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
         MPI_Bcast(&w.params.icm, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
