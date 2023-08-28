@@ -8,9 +8,10 @@ namespace pticm {
         if (inverse) {
             step = T1 < T0 ? (T0 - T1) / (num_temp - 1) : (T1 - T0) / (num_temp - 1);
             curr_temp = T1 < T0 ? T1 : T0;
-        } else {
+        }
+        else {
             step = T1 < T0 ? (1 / T1 - 1 / T0) / (num_temp - 1) : (1 / T0 - 1 / T1) / (num_temp - 1);
-            curr_temp = T1 < T0 ? 1/T0 : 1/T1;
+            curr_temp = T1 < T0 ? 1 / T0 : 1 / T1;
         }
         for (uint64_t i = 0; i < num_temp; i++) {
             temps[i] = curr_temp;
@@ -21,8 +22,8 @@ namespace pticm {
 
     void create_datatype(MPI_Datatype& param_type) {
         // Create a datatype to store parameter information
-        const int nitems=2;
-        int          param_blocklengths[] = {1,
+        const int nitems = 2;
+        int          param_blocklengths[] = { 1,
                                             1,
                                             1,
                                             1,
@@ -33,8 +34,8 @@ namespace pticm {
                                             1,
                                             1,
                                             1,
-                                            1};
-        MPI_Datatype param_types[] = {MPI_UNSIGNED_LONG, // seed
+                                            1 };
+        MPI_Datatype param_types[] = { MPI_UNSIGNED_LONG, // seed
                                     MPI_UNSIGNED_LONG, // Nt
                                     MPI_UNSIGNED_LONG, // pts
                                     MPI_UNSIGNED_LONG, // burn_in
@@ -46,7 +47,7 @@ namespace pticm {
                                     MPI_CXX_BOOL,      // inverse
                                     MPI_CXX_BOOL,      // log_data
                                     MPI_CXX_BOOL      // icm
-                            };
+        };
         MPI_Aint     param_offsets[12];
         uint32_t runner = 0;
         param_offsets[runner++] = offsetof(Parameters, seed);
@@ -62,34 +63,35 @@ namespace pticm {
         param_offsets[runner++] = offsetof(Parameters, log_data);
         param_offsets[runner++] = offsetof(Parameters, icm);
         MPI_Type_create_struct(runner,
-                            param_blocklengths,
-                            param_offsets,
-                            param_types,
-                            &param_type);
+            param_blocklengths,
+            param_offsets,
+            param_types,
+            &param_type);
         MPI_Type_commit(&param_type);
-    }; 
+    };
 
     void gather_energy_values(PTWorker& w) {
         if (w.wid == 0) {
             for (uint64_t worker = 1; worker < w.numw - 1; worker++) {
                 MPI_Recv(w.energy_values_global + w.worker_r * worker,
-                        w.worker_r, 
-                        MPI_DOUBLE, 
-                        worker, 
-                        0, 
-                        MPI_COMM_WORLD, 
-                        &w.stat);
+                    w.worker_r,
+                    MPI_DOUBLE,
+                    worker,
+                    0,
+                    MPI_COMM_WORLD,
+                    &w.stat);
             }
             if (w.numw > 1)
                 MPI_Recv(w.energy_values_global + w.worker_r * (w.numw - 1),
-                        w.last_r, 
-                        MPI_DOUBLE, 
-                        w.numw - 1, 
-                        0, 
-                        MPI_COMM_WORLD, 
-                        &w.stat);
+                    w.last_r,
+                    MPI_DOUBLE,
+                    w.numw - 1,
+                    0,
+                    MPI_COMM_WORLD,
+                    &w.stat);
             std::memcpy(w.energy_values_global, w.energy_values_local, w.loc_r * sizeof(double));
-        } else {
+        }
+        else {
             MPI_Send(w.energy_values_local, w.loc_r, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
         }
 
@@ -98,13 +100,13 @@ namespace pticm {
         double best_ene_local = __DBL_MAX__;
         StateVector state;
         size_t ind = 0;
-        for (Replica& r: w.replicas) {
+        for (Replica& r : w.replicas) {
             double r_ene = r.get_best_ene();
             if (r_ene < best_ene_local) {
                 best_ene_local = r_ene;
                 state = r.get_best_state();
             }
-            ind ++;
+            ind++;
         }
         std::unique_ptr<bool[]> state_temp = std::make_unique<bool[]>(w.p.vcount());
         if (w.wid == 0) {
@@ -113,25 +115,26 @@ namespace pticm {
             double ene_temp;
             for (uint64_t worker = 1; worker < w.numw; worker++) {
                 MPI_Recv(&ene_temp,
-                        1, 
-                        MPI_DOUBLE, 
-                        worker, 
-                        0, 
-                        MPI_COMM_WORLD, 
-                        &w.stat);
+                    1,
+                    MPI_DOUBLE,
+                    worker,
+                    0,
+                    MPI_COMM_WORLD,
+                    &w.stat);
                 MPI_Recv(state_temp.get(),
-                        w.p.vcount(), 
-                        MPI_CXX_BOOL, 
-                        worker, 
-                        0, 
-                        MPI_COMM_WORLD, 
-                        &w.stat);
+                    w.p.vcount(),
+                    MPI_CXX_BOOL,
+                    worker,
+                    0,
+                    MPI_COMM_WORLD,
+                    &w.stat);
                 if (ene_temp < best_ene_global) {
                     best_state = StateVector(state_temp.get(), state_temp.get() + w.p.vcount());
                     best_ene_global = ene_temp;
                 }
             }
-        } else {
+        }
+        else {
             for (size_t i = 0; i < w.p.vcount(); i++) {
                 state_temp[i] = state[i];
             }
@@ -144,14 +147,14 @@ namespace pticm {
 
 
     uint64_t get_flips(PTWorker& w) {
-        uint64_t flip_sum = std::accumulate(w.replicas.begin(), w.replicas.end(), 0, [] (uint64_t sum, const Replica& r) {return sum + r.get_flips();}); 
-        uint64_t recv_buff = 0;   
+        uint64_t flip_sum = std::accumulate(w.replicas.begin(), w.replicas.end(), 0, [](uint64_t sum, const Replica& r) {return sum + r.get_flips();});
+        uint64_t recv_buff = 0;
         std::unique_ptr<uint64_t[]> sumvals;
         if (w.wid == 0) {
             std::unique_ptr<uint64_t[]> sumvals = std::make_unique<uint64_t[]>(w.params.Nt * 2);
-        }         
+        }
         MPI_Reduce(&flip_sum, &recv_buff, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-        return recv_buff;   
+        return recv_buff;
     };
 
     void check_correct_beta_values(PTWorker& w) {
@@ -160,28 +163,29 @@ namespace pticm {
             correct = 1;
             std::unique_ptr<double[]> true_beta_values = std::make_unique<double[]>(w.params.Nt * 2);
             int i;
-            for (i = 1; i < w.numw-1; i++) {
-                MPI_Recv(true_beta_values.get()+(i * w.worker_r), w.worker_r, MPI_DOUBLE, i, 0, MPI_COMM_WORLD, &w.stat );
+            for (i = 1; i < w.numw - 1; i++) {
+                MPI_Recv(true_beta_values.get() + (i * w.worker_r), w.worker_r, MPI_DOUBLE, i, 0, MPI_COMM_WORLD, &w.stat);
             }
             if (w.numw > 1) {
-                MPI_Recv(true_beta_values.get()+(i * w.worker_r), w.last_r, MPI_DOUBLE, i, 0, MPI_COMM_WORLD, &w.stat );
+                MPI_Recv(true_beta_values.get() + (i * w.worker_r), w.last_r, MPI_DOUBLE, i, 0, MPI_COMM_WORLD, &w.stat);
             }
             std::memcpy(true_beta_values.get(), w.beta_values_local, w.loc_r * sizeof(double));
-            std::vector<double> true_beta_vec (w.beta_values, w.beta_values + w.params.Nt*2);
-            std::vector<double> rec_beta_vec (w.params.Nt*2);
-            for (i = 0; i < w.params.Nt*2; i++) {
+            std::vector<double> true_beta_vec(w.beta_values, w.beta_values + w.params.Nt * 2);
+            std::vector<double> rec_beta_vec(w.params.Nt * 2);
+            for (i = 0; i < w.params.Nt * 2; i++) {
                 uint32_t recorded_ind = w.beta_indices[i];
                 rec_beta_vec[i] = true_beta_values[recorded_ind];
             }
-            for (i = 0; i < w.params.Nt*2; i++) {
+            for (i = 0; i < w.params.Nt * 2; i++) {
 
                 if (std::abs(rec_beta_vec[i] - true_beta_vec[i]) > 1e-10) {
-                    std::cout << "Beta tracking error " << i <<" " << rec_beta_vec[i] << " " << true_beta_vec[i] << "\n";
+                    std::cout << "Beta tracking error " << i << " " << rec_beta_vec[i] << " " << true_beta_vec[i] << "\n";
                     correct = false;
                     break;
                 }
             }
-        } else {
+        }
+        else {
             MPI_Send(w.beta_values_local, w.loc_r, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
         }
         MPI_Bcast(&correct, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
@@ -197,28 +201,28 @@ namespace pticm {
                 return r;
             }
         }
-    
+
         // printf("Worker %d %d\n", w.wid, __LINE__);
         fflush(stdout);
         exit(-1);
     }
 
 
-    void free_worker (PTWorker& w){
+    void free_worker(PTWorker& w) {
         if (w.wid == 0) {
-            
-            delete [] w.beta_values;
-            
-            delete [] w.energy_values_global;
-            
-            delete [] w.chain_1_exchange_order;
-            
-            delete [] w.chain_2_exchange_order;
-            
-            delete [] w.beta_indices;
-            
-            delete [] w.replica_workers;
-            
+
+            delete[] w.beta_values;
+
+            delete[] w.energy_values_global;
+
+            delete[] w.chain_1_exchange_order;
+
+            delete[] w.chain_2_exchange_order;
+
+            delete[] w.beta_indices;
+
+            delete[] w.replica_workers;
+
         }
         // TODO: Figure out why these can cause memory issues
         // delete [] w.energy_values_local;

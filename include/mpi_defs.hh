@@ -47,7 +47,7 @@ namespace pticm {
         uint32_t* beta_indices; // Map from replica index to beta index. beta_values[beta_indices[i]] gives the current inverse temp of replica i
         int* replica_workers; // map from replica index to current MPI worker rank
         // Record the number of swap attempts vs swap successes
-        std::vector<uint32_t> swap_attempts; 
+        std::vector<uint32_t> swap_attempts;
         std::vector<uint32_t> swap_successes;
 
 

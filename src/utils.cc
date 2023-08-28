@@ -1,7 +1,7 @@
 #include "pt_icm.hh"
 #include "utils.hh"
-namespace pticm{
-    std::ostream& operator<<(std::ostream& out, StateVector vec){
+namespace pticm {
+    std::ostream& operator<<(std::ostream& out, StateVector vec) {
         out << "[";
         if (vec.size() > 0) {
             for (uint64_t i = 0; i < vec.size() - 1; i++) {
@@ -12,12 +12,12 @@ namespace pticm{
         out << "]";
         return out;
     };
-    std::ostream& operator<<(std::ostream& out, std::list<Edge> vec){
+    std::ostream& operator<<(std::ostream& out, std::list<Edge> vec) {
         out << "[";
         size_t size = vec.size();
         if (size > 0) {
             size_t ind = 0;
-            for (Edge& e: vec) {
+            for (Edge& e : vec) {
                 out << "(" << e.dest << ", " << e.weight << ")";
                 if (++ind < size) {
                     out << ", ";
@@ -27,7 +27,7 @@ namespace pticm{
         out << "]";
         return out;
     };
-    std::ostream& operator<<(std::ostream& out, std::vector<uint8_t> vec){
+    std::ostream& operator<<(std::ostream& out, std::vector<uint8_t> vec) {
         out << "[";
         if (vec.size() > 0) {
             for (uint64_t i = 0; i < vec.size() - 1; i++) {
@@ -88,7 +88,7 @@ namespace pticm{
 //         for (uint64_t j = 0; j < Nt; j++) {
 //             sum += histogram[j * bins + i];
 //             dos[i] += histogram[j * bins + i] * histogram[j * bins + i]  / nsweeps;
-        
+
 //         partition += sum;
 //         dos[i] /= sum;
 //     }

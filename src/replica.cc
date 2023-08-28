@@ -1,7 +1,7 @@
 #include "pt_icm.hh"
 #include <float.h>
 namespace pticm {
-    void Replica::sweep (Problem& p) {
+    void Replica::sweep(Problem& p) {
         for (uint64_t i = 0; i < p.vcount(); i++) {
             if (mh_consider(p, i)) {
                 mh_accept(p, i);
@@ -11,9 +11,9 @@ namespace pticm {
             }
 
         }
-        sweep_counter ++;
+        sweep_counter++;
     };
-    void  Replica::mh_accept (Problem& p, uint32_t index) {
+    void  Replica::mh_accept(Problem& p, uint32_t index) {
         energy += dE[index];
         p.incremental_dE(dE, state, index);
         state[index] = !state[index];
@@ -21,37 +21,37 @@ namespace pticm {
             best_ene = energy;
             best_state = state;
         }
-// #ifndef NDEBUG
-//         if (std::abs(energy - p.energy(state)) > 1e-10) {
-//             std::cout << "Incorrect Update " << energy << " " <<  p.energy(state) << std::endl;
-//             exit(0);
-//         }
-// #endif
+        // #ifndef NDEBUG
+        //         if (std::abs(energy - p.energy(state)) > 1e-10) {
+        //             std::cout << "Incorrect Update " << energy << " " <<  p.energy(state) << std::endl;
+        //             exit(0);
+        //         }
+        // #endif
         flips += 1;
     }
-    bool Replica::mh_consider (Problem& p, uint32_t index) {
+    bool Replica::mh_consider(Problem& p, uint32_t index) {
         if (dE[index] <= 0) {
             return true;
         }
         double boltzmann = std::exp(-beta * dE[index]);
         double rng_comp = p.rand_double();
-        return rng_comp < boltzmann; 
+        return rng_comp < boltzmann;
 
     }
-    Replica::Replica(Problem& p, 
-                    double _beta, 
-                    const StateVector& init_state, 
-                    const std::vector<double>& init_dE,
-                    double _energy,
-                    bool _log_ene,
-                    size_t _burn_in): energy(_energy),
-                                      beta(_beta), 
-                                      flips(0), 
-                                      state(init_state),
-                                      dE(init_dE),
-                                      log_energy(_log_ene),
-                                      burn_in(_burn_in),
-                                      sweep_counter(0) {
+    Replica::Replica(Problem& p,
+        double _beta,
+        const StateVector& init_state,
+        const std::vector<double>& init_dE,
+        double _energy,
+        bool _log_ene,
+        size_t _burn_in) : energy(_energy),
+        beta(_beta),
+        flips(0),
+        state(init_state),
+        dE(init_dE),
+        log_energy(_log_ene),
+        burn_in(_burn_in),
+        sweep_counter(0) {
         best_ene = DBL_MAX;
         best_state = init_state;
     };

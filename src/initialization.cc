@@ -10,10 +10,10 @@ namespace pticm {
         std::unique_ptr<int[]> dst;
         if (w.wid == 0) {
             Problem& p = w.p;
-            
+
             p = Problem(problem_path,
-                        w.params.seed, 
-                        w.params.burn_in);
+                w.params.seed,
+                w.params.burn_in);
             w.characteristic_scale = p.get_char_scale();
             N = p.vcount();
             M = p.ecount();
@@ -32,17 +32,19 @@ namespace pticm {
             MPI_Bcast(weights.get(), M, MPI_DOUBLE, 0, MPI_COMM_WORLD);
             MPI_Bcast(src.get(), M, MPI_INT, 0, MPI_COMM_WORLD);
             MPI_Bcast(dst.get(), M, MPI_INT, 0, MPI_COMM_WORLD);
-        } else {
+        }
+        else {
             weights = std::make_unique<double[]>(N * N);
             if (w.wid == 0) {
                 w.p.serialize(weights.get(), NULL, NULL);
             }
-            MPI_Bcast(weights.get(), N*N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+            MPI_Bcast(weights.get(), N * N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         }
-        if (w.wid != 0){
+        if (w.wid != 0) {
             if (is_sparse) {
                 w.p = Problem(weights.get(), src.get(), dst.get(), w.params.seed + w.wid, w.params.burn_in, N, M);
-            } else {
+            }
+            else {
                 w.p = Problem(weights.get(), w.params.seed + w.wid, w.params.burn_in, N);
             }
         }
@@ -56,14 +58,14 @@ namespace pticm {
         // }
         // MPI_Bcast(init_state.get(), w.p.vcount(), MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
         w.replicas = std::vector<Replica>(w.loc_r);
-        StateVector init_vector (w.p.vcount());
+        StateVector init_vector(w.p.vcount());
         fflush(stdout);
         for (size_t i = 0; i < w.loc_r; i++) {
             for (uint64_t j = 0; j < w.p.vcount(); j++) {
                 init_vector[j] = init_gen(w.p.get_rng());
             }
             std::vector<double> dE(w.p.vcount(), 0);
-            double init_ene = w.p.calculate_dE(dE, init_vector); 
+            double init_ene = w.p.calculate_dE(dE, init_vector);
             w.replicas[i] = Replica(w.p, w.beta_values_local[i], init_vector, dE, init_ene);
         }
     };
@@ -71,12 +73,12 @@ namespace pticm {
         if (w.wid == 0) {
             size_t Nt = w.params.Nt;
 
-            w.energy_values_global = new double [Nt * 2];
-            w.chain_1_exchange_order = new uint32_t [Nt - 1];
-            w.chain_2_exchange_order = new uint32_t [Nt - 1];
-            w.beta_indices = new uint32_t [Nt * 2];
-            w.swap_attempts = std::vector<uint32_t> (Nt * 2, 0);
-            w.swap_successes = std::vector<uint32_t> (Nt * 2, 0);
+            w.energy_values_global = new double[Nt * 2];
+            w.chain_1_exchange_order = new uint32_t[Nt - 1];
+            w.chain_2_exchange_order = new uint32_t[Nt - 1];
+            w.beta_indices = new uint32_t[Nt * 2];
+            w.swap_attempts = std::vector<uint32_t>(Nt * 2, 0);
+            w.swap_successes = std::vector<uint32_t>(Nt * 2, 0);
             for (uint64_t i = 0; i < Nt - 1; i++) {
                 w.chain_1_exchange_order[i] = i;
                 w.chain_2_exchange_order[i] = i;
@@ -88,7 +90,7 @@ namespace pticm {
             std::shuffle(w.chain_1_exchange_order, w.chain_1_exchange_order + Nt - 1, w.p.get_rng());
             std::shuffle(w.chain_2_exchange_order, w.chain_2_exchange_order + Nt - 1, w.p.get_rng());
         }
-        w.energy_values_local = new double [w.loc_r];
+        w.energy_values_local = new double[w.loc_r];
     };
 
     // initialize worker data
@@ -104,15 +106,15 @@ namespace pticm {
         if (Nt * 2 < w.numw) {
             if (w.wid == 0)
                 fprintf(stderr,
-                "%sERROR:%s %d workers created for %ld total replicas. Please call with fewer processes\n", RED, RESET,w.numw, Nt * 2);
+                    "%sERROR:%s %d workers created for %ld total replicas. Please call with fewer processes\n", RED, RESET, w.numw, Nt * 2);
             MPI_Finalize();
             exit(0);
-        } 
+        }
         w.worker_r = Nt * 2 / w.numw;
         uint64_t regular = w.worker_r * w.numw;
         w.last_r = w.worker_r;
         if ((Nt * 2) != regular) {
-            w.last_r += (Nt * 2) - regular; 
+            w.last_r += (Nt * 2) - regular;
         }
         w.beta_values_local = new double[w.loc_r];
         w.chain_index_local = new uint8_t[w.loc_r];
@@ -123,17 +125,17 @@ namespace pticm {
         if (w.wid == 0) {
             w.swaps = 0;
             w.replica_workers = new int[par.Nt * 2];
-            w.chain_index_global = new uint8_t [par.Nt * 2];
+            w.chain_index_global = new uint8_t[par.Nt * 2];
             uint64_t ind = 0;
             for (uint64_t i = 0; i < w.numw - 1; i++) {
                 for (uint64_t j = 0; j < w.worker_r; j++, ind++) {
                     w.replica_workers[ind] = i;
-                    w.chain_index_global[ind] = ind >= par.Nt; 
+                    w.chain_index_global[ind] = ind >= par.Nt;
                 }
             }
             for (uint64_t j = 0; j < w.last_r; j++, ind++) {
                 w.replica_workers[ind] = w.numw - 1;
-                w.chain_index_global[ind] = ind >= par.Nt; 
+                w.chain_index_global[ind] = ind >= par.Nt;
             }
             // Determine the starting beta values for each replica
 
@@ -143,7 +145,7 @@ namespace pticm {
                 if (w.beta_values[i] > w.characteristic_scale) {
                     break;
                 }
-                w.Nc ++;
+                w.Nc++;
             }
             std::memcpy(w.beta_values + par.Nt, w.beta_values, par.Nt * sizeof(double));
             // copy to the beta values for worker 0
@@ -163,7 +165,8 @@ namespace pticm {
                 uint8_t* start_chain_pointer = (w.numw - 1) * w.worker_r + w.chain_index_global;
                 MPI_Send(start_chain_pointer, w.last_r, MPI_UNSIGNED_CHAR, w.numw - 1, 0, MPI_COMM_WORLD);
             }
-        } else {
+        }
+        else {
             MPI_Recv(w.beta_values_local, w.loc_r, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, &w.stat);
             MPI_Recv(w.chain_index_local, w.loc_r, MPI_UNSIGNED_CHAR, 0, 0, MPI_COMM_WORLD, &w.stat);
         }

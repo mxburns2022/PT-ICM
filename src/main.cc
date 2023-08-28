@@ -7,10 +7,10 @@
 #include "mpi_utils.hh"
 
 namespace po = boost::program_options;
-int parse_args (int argc, 
-                 char** argv,
-                 std::string& problem_path,
-                 pticm::Parameters& params) {
+int parse_args(int argc,
+    char** argv,
+    std::string& problem_path,
+    pticm::Parameters& params) {
     params.inverse = false;
     params.log_data = false;
     params.icm = false;
@@ -23,7 +23,7 @@ int parse_args (int argc,
     params.verbosity = 0;
 #ifdef BOOST
     po::options_description desc("Allowed options");
-     desc.add_options()
+    desc.add_options()
         ("help,h", "produce help message")
         ("seed,s", po::value<uint64_t>()->default_value(time(NULL)), "random seed")
         ("problem,p", po::value<std::string>(), "path to problem file (GSET)")
@@ -37,7 +37,7 @@ int parse_args (int argc,
         ("log", po::bool_switch(&params.log_data), "Log data and calculate observables (u and c)")
         ("icm", po::bool_switch(&params.icm), "Enable isoenergetic cluster moves (ICM)")
         ("verbose", po::value<uint32_t>()->default_value(0), "Verbosity level (0 for minimal messages, 1 for periodic updates, 2 for debugging)")
-    ;
+        ;
 
     po::variables_map opts;
     po::store(po::parse_command_line(argc, argv, desc), opts);
@@ -63,63 +63,75 @@ int parse_args (int argc,
         if (param == "--help" || param == "-h") {
             assert(i < argc - 1);
             params.pts = std::atol(argv[++i]);
-            
-        } else 
-        if (param == "--seed" || param == "-s") {
-            assert(i < argc - 1);
-            params.seed = std::atol(argv[++i]);
-            
-        } else 
-        if (param == "--problem" || param == "-p") {
-            assert(i < argc - 1);
-            problem_path = argv[++i];
-            
-        } else 
-        if (param == "--burn_in" || param == "-b") {
-            assert(i < argc - 1);
-            params.burn_in = std::atol(argv[++i]);
-            
-        } else 
-        if (param == "--sweeps") {
-            assert(i < argc - 1);
-            params.sweeps = std::atol(argv[++i]);
-            
-        } else 
-        if (param == "--replicas" || param == "-r") {
-            assert(i < argc - 1);
-            params.Nt = std::atol(argv[++i]);
-            
-        } else 
-        if (param == "--pts") {
-            assert(i < argc - 1);
-            params.pts = std::atol(argv[++i]);
-        } else 
-        if (param == "--temp0" || param == "-T0") {
-            assert(i < argc - 1);
-            params.T0 = std::atof(argv[++i]);
-            
-        } else 
-        if (param == "--temp1" || param == "-T1") {
-            assert(i < argc - 1);
-            params.T1 = std::atof(argv[++i]);
-            
-        } else 
-        if (param == "--inverse") {
-            params.inverse = true;
-        } else 
-        if (param == "--log") {
-            params.log_data = true;
-        } else 
-        if (param == "--icm") {
-            params.icm = true;
-        } else 
-        if (param == "--verbose") {
-            assert(i < argc - 1);
-            params.verbosity = std::atol(argv[++i]);
-        } 
+
+        }
+        else
+            if (param == "--seed" || param == "-s") {
+                assert(i < argc - 1);
+                params.seed = std::atol(argv[++i]);
+
+            }
+            else
+                if (param == "--problem" || param == "-p") {
+                    assert(i < argc - 1);
+                    problem_path = argv[++i];
+
+                }
+                else
+                    if (param == "--burn_in" || param == "-b") {
+                        assert(i < argc - 1);
+                        params.burn_in = std::atol(argv[++i]);
+
+                    }
+                    else
+                        if (param == "--sweeps") {
+                            assert(i < argc - 1);
+                            params.sweeps = std::atol(argv[++i]);
+
+                        }
+                        else
+                            if (param == "--replicas" || param == "-r") {
+                                assert(i < argc - 1);
+                                params.Nt = std::atol(argv[++i]);
+
+                            }
+                            else
+                                if (param == "--pts") {
+                                    assert(i < argc - 1);
+                                    params.pts = std::atol(argv[++i]);
+                                }
+                                else
+                                    if (param == "--temp0" || param == "-T0") {
+                                        assert(i < argc - 1);
+                                        params.T0 = std::atof(argv[++i]);
+
+                                    }
+                                    else
+                                        if (param == "--temp1" || param == "-T1") {
+                                            assert(i < argc - 1);
+                                            params.T1 = std::atof(argv[++i]);
+
+                                        }
+                                        else
+                                            if (param == "--inverse") {
+                                                params.inverse = true;
+                                            }
+                                            else
+                                                if (param == "--log") {
+                                                    params.log_data = true;
+                                                }
+                                                else
+                                                    if (param == "--icm") {
+                                                        params.icm = true;
+                                                    }
+                                                    else
+                                                        if (param == "--verbose") {
+                                                            assert(i < argc - 1);
+                                                            params.verbosity = std::atol(argv[++i]);
+                                                        }
     }
 #endif
-    
+
     return 0;
 
 }
@@ -140,9 +152,9 @@ int main(int argc, char** argv) {
 
     if (w.wid == 0) {
         help_disp = parse_args(argc,
-                               argv,
-                               problem_path,
-                               w.params);
+            argv,
+            problem_path,
+            w.params);
     }
     // broadcast the parsing result, exit if help message displayed
     MPI_Bcast(&help_disp, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -161,7 +173,7 @@ int main(int argc, char** argv) {
     uint64_t regular = w.worker_r * w.numw;
     w.last_r = w.worker_r;
     if (Nt != regular) {
-        w.last_r += (Nt * 2) - regular; 
+        w.last_r += (Nt * 2) - regular;
     }
     // local problem declaration
     w.loc_r = w.wid != w.numw - 1 ? w.worker_r : w.last_r;
@@ -183,7 +195,7 @@ int main(int argc, char** argv) {
     //     std::cout << "Constructing original problem... ";
     //     p = Problem(problem_path, w.params.seed, w.params.burn_in);
     //     std::bernoulli_distribution init_gen(0.5);
-        
+
     //     std::cout << "Distributing replicas\n";
     //     replica_workers = std::make_unique<int[]>(Nt * 2);
     //     uint64_t ind = 0;
@@ -209,7 +221,7 @@ int main(int argc, char** argv) {
     //     // send to final
     //     double* start_pointer = (w.numw - 1) * w.worker_r + beta_values.get();
     //     MPI_Send(start_pointer, w.last_r, MPI_DOUBLE, w.numw - 1, 0, MPI_COMM_WORLD);
-        
+
 
     //     init_state = std::make_unique<bool[]>(p.vcount());
     //     for (uint64_t i = 0; i < p.vcount(); i++) {
@@ -241,7 +253,7 @@ int main(int argc, char** argv) {
     //         dest = std::make_unique<int[]>(M);
     //         std::cout << M << std::endl;
     //     }
-        
+
     //     MPI_Bcast(weights.get(), M, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     //     MPI_Bcast(src.get(), M, MPI_INT, 0, MPI_COMM_WORLD);
     //     MPI_Bcast(dest.get(), M, MPI_INT, 0, MPI_COMM_WORLD);
@@ -411,11 +423,11 @@ int main(int argc, char** argv) {
     //                     r.set_beta(old_beta);
     //                 }
     //             }
-                
+
     //         }
     //     }
     //     MPI_Barrier(MPI_COMM_WORLD);
-        
+
     // }
     // std::cout << "Worker " << w.wid << " exiting main loop "<< w.params.pts << "\n";
     // std::vector<double> local_betas (beta_values_local.get(), beta_values_local.get() + w.loc_r);
@@ -486,6 +498,6 @@ int main(int argc, char** argv) {
     //     }
     //     csvfile.close();
     // }
-    
+
     return 0;
 }

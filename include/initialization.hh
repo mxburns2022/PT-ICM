@@ -7,6 +7,6 @@ namespace pticm {
     void initialize_replicas(PTWorker& w);
     void initialize_replica_exchanges(PTWorker& w);
     void initialize_temperatures(PTWorker& w);
-    
+
 } // namespace pticm
 #endif
