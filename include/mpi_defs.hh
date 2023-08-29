@@ -20,6 +20,7 @@ namespace pticm {
         double T1;
         double cutoff;
         bool inverse;
+        bool preprocess;
         bool log_data;
         bool icm;
         uint32_t verbosity;

@@ -44,10 +44,11 @@ namespace pticm {
                                     MPI_DOUBLE,        // T1
                                     MPI_DOUBLE,        // cutoff
                                     MPI_CXX_BOOL,      // inverse
+                                    MPI_CXX_BOOL,      // preprocess
                                     MPI_CXX_BOOL,      // log_data
                                     MPI_CXX_BOOL      // icm
                             };
-        MPI_Aint     param_offsets[12];
+        MPI_Aint     param_offsets[13];
         uint32_t runner = 0;
         param_offsets[runner++] = offsetof(Parameters, seed);
         param_offsets[runner++] = offsetof(Parameters, Nt);
@@ -59,6 +60,7 @@ namespace pticm {
         param_offsets[runner++] = offsetof(Parameters, T1);
         param_offsets[runner++] = offsetof(Parameters, cutoff);
         param_offsets[runner++] = offsetof(Parameters, inverse);
+        param_offsets[runner++] = offsetof(Parameters, preprocess);
         param_offsets[runner++] = offsetof(Parameters, log_data);
         param_offsets[runner++] = offsetof(Parameters, icm);
         MPI_Type_create_struct(runner,

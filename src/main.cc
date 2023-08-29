@@ -31,9 +31,10 @@ int parse_args (int argc,
         ("sweeps,s", po::value<uint64_t>()->default_value(1), "replica sweeps per parallel tempering step")
         ("replicas,r", po::value<uint64_t>()->default_value(20), "number of independent temperatures to simulate")
         ("pts", po::value<uint64_t>()->default_value(2000), "number of parallel tempering steps (one sweep per replica, one replica exchange attempt, one ICM)")
-        ("temp0,T0", po::value<double>()->default_value(1.92), "Starting temperature")
-        ("temp1,T1", po::value<double>()->default_value(2.6903), "Ending temperature")
+        ("temp0,T0", po::value<double>()->default_value(0.6), "Starting temperature")
+        ("temp1,T1", po::value<double>()->default_value(2.8), "Ending temperature")
         ("inverse,i", po::bool_switch(&params.inverse), "Interpret temperatures as inverted")
+        ("preprocess", po::bool_switch(&params.preprocess), "Enable CAE temperature selection")
         ("log", po::bool_switch(&params.log_data), "Log data and calculate observables (u and c)")
         ("icm", po::bool_switch(&params.icm), "Enable isoenergetic cluster moves (ICM)")
         ("verbose", po::value<uint32_t>()->default_value(0), "Verbosity level (0 for minimal messages, 1 for periodic updates, 2 for debugging)")
@@ -55,6 +56,7 @@ int parse_args (int argc,
     params.T1 = opts["temp1"].as<double>();
     params.verbosity = opts["verbose"].as<uint32_t>();
     params.icm = opts["icm"].as<bool>();
+    params.preprocess = opts["preprocess"].as<bool>();
     params.log_data = opts["log"].as<bool>();
     params.inverse = opts["inverse"].as<bool>();
 #else
@@ -112,6 +114,9 @@ int parse_args (int argc,
         } else 
         if (param == "--icm") {
             params.icm = true;
+        } else 
+        if (param == "--preprocess") {
+            params.preprocess = true;
         } else 
         if (param == "--verbose") {
             assert(i < argc - 1);

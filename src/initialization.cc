@@ -96,7 +96,11 @@ namespace pticm {
         Parameters& par = w.params;
         if (w.wid == 0) {
             w.beta_values = new double[par.Nt * 2];
-            get_beta(w, 2, 1e-1, 0.3, 5000);
+            if (w.params.preprocess) {
+                get_beta(w, 2, 1e-1, 0.3, 5000);
+            } else {
+                beta_linspace(w.beta_values, w.params.T0, w.params.T1, w.params.Nt, w.params.inverse);
+            }
         }
         MPI_Bcast((void*)&w.params.Nt, 1, MPI_UINT64_T, 0, MPI_COMM_WORLD);
         uint64_t Nt = w.params.Nt;
