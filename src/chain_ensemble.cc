@@ -1,6 +1,10 @@
 #include "pt_icm.hh"
 #include <stack>
-
+/**
+ * Chain Ensemble
+ * 
+ * 
+*/
 ChainEnsemble::ChainEnsemble(Problem& p,
               uint32_t _Nt,
               uint32_t _Nc,

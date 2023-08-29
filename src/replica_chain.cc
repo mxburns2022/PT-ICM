@@ -2,6 +2,10 @@
 #include <float.h>
 #include <boost/format.hpp>
 
+/**
+ * Methods used for manipulating a chain of replicas 
+*/
+
 ReplicaChain::ReplicaChain(Problem& p,
                            uint32_t _Nt,
                            double beta0,
@@ -9,6 +13,9 @@ ReplicaChain::ReplicaChain(Problem& p,
                            bool _log_data,
                            bool space_inverse): Nt(_Nt),
                                             sweep_counter(0) {
+    /**
+     * Ctor using linearly spaced inverse temp values
+    */
     log_data = _log_data;
     correlations = std::vector<size_t>(Nt, 1);
     num_swaps = 0;
@@ -16,6 +23,7 @@ ReplicaChain::ReplicaChain(Problem& p,
     exchange_index = 0;
     double beta_step = Nt > 1 ? (beta1 - beta0) / (Nt - 1) : 0;
     double beta = beta0;
+    // initialize data structures
     swap_logs = std::vector<size_t>(Nt, 0);
     cons_logs = std::vector<size_t>(Nt, 0);
     indices = std::vector<size_t>(Nt);
@@ -24,7 +32,7 @@ ReplicaChain::ReplicaChain(Problem& p,
     StateVector init = StateVector(p.vcount(), false);
     energy_log = std::vector<std::vector<double>>(Nt);
     magnetization_log = std::vector<std::vector<double>>(Nt);
-
+    // random starting state (later versions with MPI are different for all replicas, found it to perform better)
     std::vector<double> dE(p.vcount(), 0);
     for (size_t i = 0; i < init.size(); i++) {
         if (p.rand_double() > 0.5) {
@@ -33,6 +41,7 @@ ReplicaChain::ReplicaChain(Problem& p,
     }
     double init_ene = p.calculate_dE(dE, init);
     double beta_value;
+    // construct each replica along chain
     for (size_t i = 0; i < Nt-1; i++) {
         swaps[i] = i;
         indices[i] = i;
@@ -62,6 +71,10 @@ ReplicaChain::ReplicaChain(Problem& p,
                            bool _log_data,
                            bool inverse): Nt(_Nt), 
                                            sweep_counter(0) {
+    /**
+     * Ctor using given array of inverse temp values
+    */
+    // init data structures 
     log_data = _log_data;
     correlations = corr;
     swap_logs = std::vector<size_t>(Nt, 0);
@@ -74,16 +87,18 @@ ReplicaChain::ReplicaChain(Problem& p,
     swaps = std::vector<uint32_t>(Nt-1);
     StateVector init = StateVector(p.vcount(), false);
     std::vector<double> dE(p.vcount(), 0);
+    // random starting state (later versions with MPI are different for all replicas, found it to perform better)
     for (size_t i = 0; i < init.size(); i++) {
         if (p.rand_double() > 0.5) {
             init[i] = true;
         }
     }
+    // initial energy, dE vector
     double init_ene = p.calculate_dE(dE, init);
     double beta_value;
     energy_log = std::vector<std::vector<double>>(Nt);
     magnetization_log = std::vector<std::vector<double>>(Nt);
-
+    // construct replicas
     for (size_t i = 0; i < Nt-1; i++) {
         swaps[i] = i;
         indices[i] = i;
@@ -104,7 +119,11 @@ ReplicaChain::ReplicaChain(Problem& p,
     indices[Nt-1] = Nt-1;
     replicas[Nt-1] = Replica(p, beta_values[Nt-1], init, dE, init_ene);                        
 }
+
 void ReplicaChain::allocate_logs(size_t sweeps) {
+    /**
+     * Allocate thermodynamic logs
+    */
     if (!log_data) {
         return;
     }
@@ -117,6 +136,9 @@ void ReplicaChain::allocate_logs(size_t sweeps) {
 }
 
 void ReplicaChain::do_sweeps (Problem& p) {
+    /**
+     * Perform one sweep for each 
+    */
 
     if (exchange_index == Nt - 1) {
         exchange_index = 0;
@@ -132,12 +154,12 @@ void ReplicaChain::do_sweeps (Problem& p) {
             }
             // std::cout << ind << " " << r.get_beta() << " " << r.get_energy() << std::endl;
     }
+
     size_t i = swaps[exchange_index++];
     size_t index_low = indices[i];
     size_t index_high = indices[i+1];
     Replica& low = replicas[indices[i]];
     Replica& high = replicas[indices[i+1]];
-    cons_logs[i]+=1;
     if (re_consider(p, low, high)) {
         num_swaps ++;
         double beta1 = low.get_beta();

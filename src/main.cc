@@ -100,6 +100,7 @@ int main(int argc, char** argv) {
     bool inverse;
     bool log_data;
 
+    // parse the provided arguments
     parse_args(argc,
                argv,
                seed,
@@ -111,17 +112,18 @@ int main(int argc, char** argv) {
                beta1,
                inverse,
                log_data);
-    // std::vector<double> beta = get_cae(p, Nt, 0);
-    // std::vector<size_t> corr_sweeps = std::vector<size_t>(Nt, 1);
-    // std::cout << beta << std::endl
+ 
+    // Construct the problem and set the seed/burn-in count
     Problem p(problem_path, seed, burn_in);
+    // Construct the chain ensemble with the number of replicas (Nt), the high/low beta values, and flag parameters
     ChainEnsemble chaine(p, Nt, 5, beta0, beta1, log_data, inverse);
     double final_ene;
     StateVector solution;
     chaine.solve(p, final_ene, solution, burn_in + pts);
     size_t last_slash = problem_path.rfind("/"); 
     std::string graphname = problem_path.substr(last_slash+1);
-    // chaine.get_chain1().print_A_swap();
+
+    // output run info/results in CSV format
     std::cout << "graph,energy,cut,flips,swaps,pts,Nt,nodes,seed,beta0,beta1,inverse,log_data" << std::endl <<
         graphname << "," <<
         final_ene << "," <<
@@ -137,6 +139,8 @@ int main(int argc, char** argv) {
         inverse << "," <<
         log_data << std::endl;
     const ReplicaChain& chain1 = chaine.get_chain1();
+
+    // If data logging is enabled, then dump thermodynamic observables to result file
     if (log_data){
         std::vector<double> specific_heat;
         std::vector<double> u;

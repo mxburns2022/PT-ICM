@@ -1,12 +1,20 @@
 #include "pt_icm.hh"
 
+/**
+ * Utilities relating to problem-specific quantities
+*/
 double Problem::calculate_dE (std::vector<double>& dE, const StateVector& s) const {
+    /**
+     * Calculate the energy change vector from scratch using the StateVector s, store in the dE reference
+     * 
+    */
     double ene = 0.0;
     double ene_term;
     assert(sign(false) == -1);
     assert(sign(true) == 1); 
     for (size_t i = 0; i < N; i++) {
         int ival = sign(s[i]);
+        // If sparse, then loop over nearest neighbors
         if (sparse) {
             const std::list<Edge>& iedges = formulation_sparse.at(i);
             for (auto e: iedges) {
@@ -15,14 +23,13 @@ double Problem::calculate_dE (std::vector<double>& dE, const StateVector& s) con
                 dE[i] -= 2 * ene_term;
             }
         } else {
+            // If dense, then loop over entire row (symmetric matrix allows skipping of some iterations)
             const std::vector<double>& iedges = formulation.at(i);
-            for (size_t j = 0; j < N; j++) {
-                if (i == j) {
-                    continue;
-                }
+            for (size_t j = i+1; j < N; j++) {
                 ene_term = ival * sign(s[j]) * iedges.at(j);
-                ene += ene_term / 2;
+                ene += ene_term;
                 dE[i] -= 2 * ene_term;
+                dE[j] -= 2 * ene_term;
             }
         }
     }

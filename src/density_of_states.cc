@@ -9,6 +9,11 @@
 #define DOS_PTS 500
 #define NUMBINS 100
 
+/**
+ * First attempt at CAE construction using a single-histogram sampling technique. IGNORE, DOESN'T WORK AND ISN'T USED
+ * 
+ * 
+*/
 
 void get_histogram(ReplicaChain& rc, Problem& p, std::vector<std::vector<double>>& hist, double& emin, double& estep ) {
     size_t Nt = rc.get_replicas().size();
