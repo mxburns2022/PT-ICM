@@ -1,10 +1,16 @@
 #include "cae_estimator.hh"
 #include "utils.hh"
 
+
+/**
+ * Utilities for spacing the temperatures to ensure a  
+*/
 namespace pticm {
-        inline size_t to_bin(const double e, const double emin, const double estep) {
+    // Convert the energy value `e` to a histogram bin index 
+    inline size_t to_bin(const double e, const double emin, const double estep) {
         return static_cast<size_t>(std::floor((e - emin) / estep));
     }
+    // convert a bin index to an energy value (starting from 0). Useful in log functions where 
     double e_bin(const size_t index, const double estep) {
         return index * estep;
     }
@@ -243,7 +249,6 @@ namespace pticm {
         double p1i, p12, e1, e2;
         bool first = true;
         e1 = emin;
-        
         #pragma GCC unroll 100
         for (size_t i = 0; i < logdos.size(); i++, e1 += estep) {
             p1i = p1[i];
@@ -256,8 +261,8 @@ namespace pticm {
                     r = logplusexp2(r, p1i + p2[j]);
                 }
             }
-            e2 = e1 + estep;
-            for (size_t j = i+1; j < logdos.size(); j++, e2 += estep) {
+            e2 = e1;
+            for (size_t j = i; j < logdos.size(); j++, e2 += estep) {
                 p12  = (beta_1 - beta_2) * ( e1 - e2 );
                 if (first) {
                     first = false;

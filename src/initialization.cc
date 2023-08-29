@@ -118,12 +118,12 @@ namespace pticm {
         if ((Nt * 2) != regular) {
             w.last_r += (Nt * 2) - regular; 
         }
-        w.beta_values_local = new double[w.loc_r];
-        w.chain_index_local = new uint8_t[w.loc_r];
         // std::cout <<  w.wid << " " << w.loc_r << std::endl;
         // getchar();
         // local problem declaration
         w.loc_r = w.wid != w.numw - 1 ? w.worker_r : w.last_r;
+        w.beta_values_local = new double[w.loc_r];
+        w.chain_index_local = new uint8_t[w.loc_r];
         if (w.wid == 0) {
             w.swaps = 0;
             w.replica_workers = new int[par.Nt * 2];
