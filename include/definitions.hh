@@ -61,7 +61,7 @@ namespace pticm {
     std::vector<double> operator/(std::vector<uint32_t>& left, std::vector<uint32_t>& right);
     typedef std::vector<std::vector<double>> Matrix;
     typedef std::vector<std::list<Edge>> SparseMatrix;
-    //the following are UBUNTU/LINUX, and MacOS ONLY terminal color codes.
+    //the following are UBUNTU/LINUX and MacOS ONLY terminal color codes.
     #define RESET   "\033[0m"
     #define BLACK   "\033[30m"      /* Black */
     #define RED     "\033[31m"      /* Red */

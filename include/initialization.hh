@@ -3,6 +3,7 @@
 #include "mpi_defs.hh"
 
 namespace pticm {
+    // initialization functions
     void read_problem(PTWorker& w, std::string problem_path);
     void initialize_replicas(PTWorker& w);
     void initialize_replica_exchanges(PTWorker& w);

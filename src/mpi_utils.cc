@@ -2,13 +2,15 @@
 
 namespace pticm {
     MPI_Status stat;
-
+    // linearly space the temperature values
     void beta_linspace(double* temps, double T0, double T1, uint64_t num_temp, bool inverse) {
         double step, curr_temp;
+        // assume T0/T1 given as inverse temperatures
         if (inverse) {
             step = T1 < T0 ? (T0 - T1) / (num_temp - 1) : (T1 - T0) / (num_temp - 1);
             curr_temp = T1 < T0 ? T1 : T0;
         } else {
+            // assume T0/T1 given as temperatures
             step = T1 < T0 ? (1 / T1 - 1 / T0) / (num_temp - 1) : (1 / T0 - 1 / T1) / (num_temp - 1);
             curr_temp = T1 < T0 ? 1/T0 : 1/T1;
         }
@@ -71,7 +73,7 @@ namespace pticm {
                                  &param_type);
         MPI_Type_commit(&param_type);
     }; 
-
+    // get the current energy values from each replica across all workers
     void gather_energy_values(PTWorker& w) {
         if (w.wid == 0) {
             for (uint64_t worker = 1; worker < w.numw - 1; worker++) {
@@ -97,6 +99,7 @@ namespace pticm {
         }
 
     };
+    // get the best recorded energy value/state across all replicas
     void gather_best_energy_values(PTWorker& w, double& best_ene_global, StateVector& best_state) {
         double best_ene_local = __DBL_MAX__;
         StateVector state;
@@ -145,7 +148,7 @@ namespace pticm {
     };
 
 
-
+    // get the flip counts from each replica
     uint64_t get_flips(PTWorker& w) {
         uint64_t flip_sum = std::accumulate(w.replicas.begin(), w.replicas.end(), 0, [] (uint64_t sum, const Replica& r) {return sum + r.get_flips();}); 
         uint64_t recv_buff = 0;   
@@ -156,7 +159,7 @@ namespace pticm {
         MPI_Reduce(&flip_sum, &recv_buff, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
         return recv_buff;   
     };
-
+    // ensure that the beta indexing scheme is correct
     void check_correct_beta_values(PTWorker& w) {
         bool correct = 1;
         if (w.wid == 0) {
@@ -193,6 +196,7 @@ namespace pticm {
             exit(1);
         }
     }
+    // get replica based on the beta value
     Replica& get_replica(PTWorker& w, double beta, uint8_t chain) {
         for (size_t i = 0; i < w.loc_r; i++) {
             Replica& r = w.replicas[i];
@@ -206,7 +210,7 @@ namespace pticm {
         exit(-1);
     }
 
-
+    // free worker memory
     void free_worker (PTWorker& w){
         if (w.wid == 0) {
             
@@ -223,9 +227,8 @@ namespace pticm {
             delete [] w.replica_workers;
             
         }
-        // TODO: Figure out why these can cause memory issues
-        // delete [] w.energy_values_local;
-        // delete [] w.beta_values_local;
+        delete [] w.energy_values_local;
+        delete [] w.beta_values_local;
 
     };
 } // namespace pticm

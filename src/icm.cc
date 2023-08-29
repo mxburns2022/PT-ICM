@@ -3,6 +3,7 @@
 #include <stack>
 
 namespace pticm {
+    // perform the isoenergetic cluster move XOR operation, return a random starting spin for BFS
     int64_t xor_icm (PTWorker& w, bool* state_1, bool* state_2) {
         size_t Nt = w.params.Nt;
         std::vector<int64_t> oneinds;
@@ -31,6 +32,7 @@ namespace pticm {
         std::sample(oneinds.begin(), oneinds.end(), seed_val.begin(), 1, w.p.get_rng());
         return seed_val.front();
     }
+    // Perform BFS on the two states from an initial spin. Add all connected spins i such that state_1[i] != state_2[i]
     void bfs_icm(Problem& p, int64_t seed_val, bool* state_1, bool* state_2) {
         std::stack<int64_t> ind_stack;
         ind_stack.push(seed_val);
@@ -38,6 +40,7 @@ namespace pticm {
 
         size_t numflipped = 0;
         added[seed_val] = true;
+        // use a stack because recursion is for suckers
         while(!ind_stack.empty()) {
             int64_t ind = ind_stack.top();
             ind_stack.pop();
@@ -64,14 +67,8 @@ namespace pticm {
                 }
             }
         }
-
-        // if(std::abs(start_ene - (r1_ene + r2_ene)) > 1e-10){
-        //     printf("ERROR, cluster move not isoenergetic\n\t%f\t%f\t%f\n", start_ene, r1_ene + r2_ene, p.energy(state_1)+p.energy(state_2));
-        //     exit(-1);
-        // }
-        // std::cout << r1.get_beta() << " " << r2.get_beta() << " " << static_cast<double>(numflipped) / p.vcount() << std::endl;
     }
-
+    // Perform an isoenergetic cluster move on a given replica. Only run by the managing process (w.wid = 0)
     void icm (PTWorker& w, size_t target_replica) {
         // get the indices for the replicas with equal temperatures in the two chains
         uint32_t replica_1 = w.beta_indices[target_replica];
@@ -93,7 +90,12 @@ namespace pticm {
             }
         } 
         // return;
+        // Here's where it gets messy....
+
         if (worker_1 != worker_2 && worker_1 != 0 && worker_2 != 0){
+            /* If neither of the workers is 0 and they aren't the same, 
+                then let them figure it out themselves 
+                (chain 1 will perform the cluster move, minimizes data movement)*/
             int8_t ack = 2;
             MPI_Send(&ack, 1, MPI_SIGNED_CHAR, worker_1, 0, MPI_COMM_WORLD);
             MPI_Send(&beta_val, 1, MPI_DOUBLE, worker_1, 0, MPI_COMM_WORLD);
@@ -106,13 +108,19 @@ namespace pticm {
             return;
             // MPI_Recv(state_1.get(), w.p.vcount(), MPI_CXX_BOOL, worker_1, 0, MPI_COMM_WORLD, &w.stat);
             // MPI_Recv(state_2.get(), w.p.vcount(), MPI_CXX_BOOL, worker_2, 0, MPI_COMM_WORLD, &w.stat);
+
+
         } else if (worker_1 == worker_2 && worker_2 != 0) {
+            /* If the replicas belong to the same worker that isn't 0, let that 
+                worker do the ICM*/
             int8_t ack = 4;
             // the worker will perform the swap locally
             MPI_Send(&ack, 1, MPI_SIGNED_CHAR, worker_1, 0, MPI_COMM_WORLD);
             MPI_Send(&beta_val, 1, MPI_DOUBLE, worker_1, 0, MPI_COMM_WORLD);
             return;
         } else if (worker_1 != 0) {
+            /* If the chain 1 replica belongs to a different worker, but chain 2 belongs to worker 0, 
+                then get the chain 2 state and perform the ICM here*/
             int8_t ack = 0;
             MPI_Send(&ack, 1, MPI_SIGNED_CHAR, worker_1, 0, MPI_COMM_WORLD);
             MPI_Send(&beta_val, 1, MPI_DOUBLE, worker_1, 0, MPI_COMM_WORLD);
@@ -120,6 +128,8 @@ namespace pticm {
             StateVector& s2 = get_replica(w, beta_val, 1).get_state();
             std::copy(s2.begin(), s2.end(), state_2.get());
         } else if (worker_2 != 0) {
+            /* If the chain 2 replica belongs to a different worker, but chain 1 belongs to worker 0, 
+                then get the chain 1 state and perform the ICM here*/
             StateVector& s1 = get_replica(w, beta_val, 0).get_state();
             std::copy(s1.begin(), s1.end(), state_1.get());
             int8_t ack = 1;
@@ -128,49 +138,49 @@ namespace pticm {
             MPI_Send(&beta_val, 1, MPI_DOUBLE, worker_2, 0, MPI_COMM_WORLD);
             MPI_Recv(state_2.get(), w.p.vcount(), MPI_CXX_BOOL, worker_2, 0, MPI_COMM_WORLD, &w.stat);
         } else {
+
+            /* Both replicas belong to worker 0, do the ICM here */
             StateVector& s1 = get_replica(w, beta_val, 0).get_state();
             std::copy(s1.begin(), s1.end(), state_1.get());
 
             StateVector& s2 = get_replica(w, beta_val, 1).get_state();
             std::copy(s2.begin(), s2.end(), state_2.get());
         }
+        // perform the xor, get a seed value (could optimize, leftover from previous implementation)
         int64_t seed_val = xor_icm(w, state_1.get(), state_2.get());
+        // if identical replicas, nothing to do other than send the same states back
+        if (seed_val != -1){
 
-        if (seed_val == -1){
-            return;
-        }
-        double ene1,ene2,ene1_2,ene2_2;
-        if (w.params.verbosity >= 2) {
-            ene1 = w.p.energy(std::vector<bool>(state_1.get(), state_1.get() + w.p.vcount()));
-            ene2 = w.p.energy(std::vector<bool>(state_2.get(), state_2.get() + w.p.vcount()));
+            double ene1,ene2,ene1_2,ene2_2;
+            // 
+            if (w.params.verbosity >= 2) {
+                ene1 = w.p.energy(std::vector<bool>(state_1.get(), state_1.get() + w.p.vcount()));
+                ene2 = w.p.energy(std::vector<bool>(state_2.get(), state_2.get() + w.p.vcount()));
 
-        }
-        bfs_icm(w.p, seed_val, state_1.get(), state_2.get());
-        if (w.params.verbosity >= 2) {
-            ene1_2 = w.p.energy(std::vector<bool>(state_1.get(), state_1.get() + w.p.vcount()));
-            ene2_2 = w.p.energy(std::vector<bool>(state_2.get(), state_2.get() + w.p.vcount()));
+            }
+            bfs_icm(w.p, seed_val, state_1.get(), state_2.get());
+            if (w.params.verbosity >= 2) {
+                ene1_2 = w.p.energy(std::vector<bool>(state_1.get(), state_1.get() + w.p.vcount()));
+                ene2_2 = w.p.energy(std::vector<bool>(state_2.get(), state_2.get() + w.p.vcount()));
 
+            }
         }
         // if worker_1 == worker_2, it will have performed the ICM locally
-
         if (worker_1 != 0) {
-
-            // printf("Sender %d %d\n", __LINE__, worker_2);
+        // send the new state back to worker 1
             MPI_Send(state_1.get(), w.p.vcount(), MPI_CXX_BOOL, worker_1, 0, MPI_COMM_WORLD);
 
+        // store the new energy and replica state in the local replica
             Replica& r2 = get_replica(w, beta_val, 1);
             StateVector s2 = std::vector<bool>(state_2.get(), state_2.get() + w.p.vcount());
             r2.set_state(s2);
             std::vector<double> dEtemp2 (w.p.vcount());
             double energy = w.p.calculate_dE(dEtemp2, s2);
-            //  if(std::abs(r2.get_energy() - w.p.energy(r2.get_state())) > 1e-10) {
-            //     printf("Worker %d %d\n", w.wid, __LINE__);
-            //     fflush(stdout);
-            //     exit(-1);
-            // }
         } else if (worker_2 != 0) {
-
+        // send the new state back to worker 2
             MPI_Send(state_2.get(), w.p.vcount(), MPI_CXX_BOOL, worker_2, 0, MPI_COMM_WORLD);
+
+        // store the new energy and replica state in the local replica
             Replica& r1 = get_replica(w, beta_val, 0);
             StateVector s1 = std::vector<bool>(state_1.get(), state_1.get() + w.p.vcount());
             r1.set_state(s1);
@@ -179,6 +189,7 @@ namespace pticm {
             r1.set_energy(energy);
             r1.set_dE(dEtemp1);
         } else {
+        // store the new energy and replica states in the local replicas
             Replica& r1 = get_replica(w, beta_val, 0);
             StateVector s1 = std::vector<bool>(state_1.get(), state_1.get() + w.p.vcount());
             r1.set_state(s1);
@@ -196,20 +207,12 @@ namespace pticm {
 
             r2.set_energy(energy);
             r2.set_dE(dEtemp2);
-            // if(std::abs(r1.get_energy() - w.p.energy(r1.get_state())) > 1e-10) {
-            //     printf("Worker %d %d\n", w.wid, __LINE__);
-            //     fflush(stdout);
-            //     exit(-1);
-            // }
-            // if(std::abs(r2.get_energy() - w.p.energy(r2.get_state())) > 1e-10) {
-            //     printf("Worker %d %d\n", w.wid, __LINE__);
-            //     fflush(stdout);
-            //     exit(-1);
-            // }
         }
         
 
     }
+    // Function called by workers with wid != 0
+    // Check for messages from manager, acta accordingly
     void check_icm (PTWorker& w) {
         int8_t incoming;
         MPI_Recv(&incoming, 1, MPI_SIGNED_CHAR, 0, 0, MPI_COMM_WORLD, &w.stat);
@@ -219,6 +222,8 @@ namespace pticm {
         double beta_value;
         MPI_Recv(&beta_value, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, &w.stat);
         if (incoming < 2) {
+            // You were selected for ICM and the other worker is the manager. 
+            // `incoming` denotes the chain index of the replica
             // copy the replica state
             Replica& r = get_replica(w, beta_value, incoming);
             std::unique_ptr<bool[]> sarr = std::make_unique<bool[]> (w.p.vcount());
@@ -234,24 +239,25 @@ namespace pticm {
             double energy = w.p.calculate_dE(dEtemp1, s1);
             r.set_energy(energy);
             r.set_dE(dEtemp1);
-            // if(std::abs(r.get_energy() - w.p.energy(r.get_state())) > 1e-10) {
-            //     printf("Worker %d %d\n", w.wid, __LINE__);
-            //     fflush(stdout);
-            //     exit(-1);
-            // }
+
         } else if (incoming == 2) {
-            // send the data to index 0
+            // You were selected for ICM and the other worker has the chain 1 replica
+            // get the chain 0 replica info (replica with given beta value)
             Replica& r = get_replica(w, beta_value, 0);
             std::unique_ptr<bool[]> sarr1 = std::make_unique<bool[]> (w.p.vcount());
             std::unique_ptr<bool[]> sarr2 = std::make_unique<bool[]> (w.p.vcount());
             StateVector& s1 = r.get_state();
             std::copy(s1.begin(), s1.end(), sarr1.get());
             uint32_t other_worker;
+            // get state from chain 1 worker
             MPI_Recv(&other_worker, 1, MPI_UNSIGNED, 0, 0, MPI_COMM_WORLD, &w.stat);
             MPI_Recv(sarr2.get(), w.p.vcount(), MPI_CXX_BOOL, other_worker, 0, MPI_COMM_WORLD, &w.stat);
 
-            int64_t seed_val = xor_icm(w, sarr1.get(), sarr2.get());
 
+            // do the ICM
+            int64_t seed_val = xor_icm(w, sarr1.get(), sarr2.get());
+            bfs_icm(w.p, seed_val, sarr1.get(), sarr2.get());
+            // send the new state
             MPI_Send(sarr2.get(), w.p.vcount(), MPI_CXX_BOOL, other_worker, 0, MPI_COMM_WORLD);
             StateVector s1new = std::vector<bool>(sarr1.get(), sarr1.get() + w.p.vcount());
             r.set_state(s1new);
@@ -283,12 +289,6 @@ namespace pticm {
             double energy = w.p.calculate_dE(dEtemp1, s1);
             r.set_energy(energy);
             r.set_dE(dEtemp1);
-            // if(std::abs(r.get_energy() - w.p.energy(r.get_state())) > 1e-10) {
-            //     printf("Worker %d %d\n", w.wid, __LINE__);
-            //     fflush(stdout);
-            //     exit(-1);
-            // }
-            
         } else if (incoming  == 4) {
             // perform the ICM locally
             Replica& r1 = get_replica(w, beta_value, 0);

@@ -2,6 +2,7 @@
 #ifndef UTILS
 #define UTILS
 
+// Declarations of useful utilites (may not be in utils.cc, might have moved)
 #define LINECHECK {\
     printf("CHECK %d\n", __LINE__);\
     fflush(stdout);\

@@ -22,22 +22,30 @@ namespace pticm {
         if (Nt != regular) {
             w.last_r += (Nt * 2) - regular; 
         }
-        // local problem declaration
         w.loc_r = w.wid != w.numw - 1 ? w.worker_r : w.last_r;
+        // instantiate the problem
         read_problem(w, problem_path);
+
+        // initialize the temperatures (either preprocessed CAE or linearly spaced)
         write_update(w, "Initializing Temperatures", 1);
         initialize_temperatures(w);
+
+        // initialize replicas and send info to workers
         write_update(w, "Initializing Replicas", 1);
         initialize_replicas(w);
+
+        // Initialize the replica exchange data structures
         write_update(w, "Initializing Exchanges", 1);
         initialize_replica_exchanges(w);
-        write_update(w, "Starting MCMC loop", 1);
+        // ensure that each worker is present before starting loop
         MPI_Barrier(MPI_COMM_WORLD);
+        write_update(w, "Starting MCMC loop", 1);
         double progress;
         size_t display_index = 0;
         std::vector<char> display;
         double itracker;
         double trackerinc;
+
         if (w.wid == 0 && w.params.verbosity >= 1){
             display =  std::vector<char>(51); // enable bound checking, no buffer overflow allowed
             display.back() = '\0';
@@ -49,28 +57,34 @@ namespace pticm {
             progress = 0.00;            
 
         }
+        // MAIN MCMC LOOP
         for (size_t i = 0; i < w.params.pts; i++) {
-
+            // sweep each replica (here order doesn't matter)
             for (size_t s = 0; s < w.params.sweeps; s++){
                 uint64_t replica_ind = 0;
                 for (Replica& r: w.replicas) {
                     r.sweep(w.p);
+                    // store energy values for use in replica exchange
                     w.energy_values_local[replica_ind++] = r.get_energy();
                 }
             }
+            // send all energy values to manager
             gather_energy_values(w);
+            // perform Nt - 1 replica exchange proposals for each chain
             for (size_t m = 0; m < w.params.Nt - 1; m++) {
                 if (w.wid == 0){
-                    try_replica_exchange(w, 0);
-                    try_replica_exchange(w, 1);
+                    try_replica_exchange(w, 0); // chain 0 proposal
+                    try_replica_exchange(w, 1); // chain 1 proposal
                 } else {
-
-                    check_for_replica_exchange(w);
+                    check_for_replica_exchange(w); // check for exchange in either chain
                     check_for_replica_exchange(w);
                 }
             }
+            // if ICM is enabled
             if (w.params.icm) {
-                for (size_t icm_target = 0; icm_target < w.Nc; icm_target++) {
+                // perform ICM on all relevant replicas
+
+                for (size_t icm_target = w.params.Nt-1; icm_target >= w.params.Nt - w.Nc; icm_target--) {
                     if (w.wid == 0) {
                         icm(w, icm_target);
                     } else {
@@ -78,6 +92,8 @@ namespace pticm {
                     }
                 }
             }
+            
+            // if verbosity set to 1 or above, add nice colored progress bar
             if (w.wid == 0 && w.params.verbosity >= 1){
                 itracker+=trackerinc;
                 bool changed = false;
@@ -119,7 +135,6 @@ namespace pticm {
             std::cout << best_state << std::endl;
             std::cout << std::vector<double> (w.beta_values, w.beta_values + w.params.Nt) << "\n";
         }
-        std::cout << w.wid << std::endl;
         MPI_Barrier(MPI_COMM_WORLD);
         free_worker(w);
 

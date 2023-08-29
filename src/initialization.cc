@@ -2,6 +2,7 @@
 #include "mpi_utils.hh"
 #include "utils.hh"
 namespace pticm {
+    // Read the problem from the provided file path
     void read_problem(PTWorker& w, std::string problem_path) {
         size_t M, N;
         bool is_sparse;
@@ -9,6 +10,7 @@ namespace pticm {
         std::unique_ptr<int[]> src;
         std::unique_ptr<int[]> dst;
         if (w.wid == 0) {
+            // manager constructs the problem, stores the characteristic scale (for ICM percolation)
             Problem& p = w.p;
             
             p = Problem(problem_path,
@@ -19,10 +21,13 @@ namespace pticm {
             M = p.ecount();
             is_sparse = p.is_sparse();
         }
+        // broadcast sparsity + node/edge counts
         MPI_Bcast(&is_sparse, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
         MPI_Bcast(&N, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
         MPI_Bcast(&M, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+        // serialize the problem matrix
         if (is_sparse) {
+            // if sparse, store in COO format TODO: convert to CSR to save space
             weights = std::make_unique<double[]>(M);
             src = std::make_unique<int[]>(M);
             dst = std::make_unique<int[]>(M);
@@ -33,12 +38,14 @@ namespace pticm {
             MPI_Bcast(src.get(), M, MPI_INT, 0, MPI_COMM_WORLD);
             MPI_Bcast(dst.get(), M, MPI_INT, 0, MPI_COMM_WORLD);
         } else {
+            // dense matrix, broadcast NxN matrix of weights
             weights = std::make_unique<double[]>(N * N);
             if (w.wid == 0) {
                 w.p.serialize(weights.get(), NULL, NULL);
             }
             MPI_Bcast(weights.get(), N*N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         }
+        // for all non-manager workers, construct the problem from the serialized info
         if (w.wid != 0){
             if (is_sparse) {
                 w.p = Problem(weights.get(), src.get(), dst.get(), w.params.seed + w.wid, w.params.burn_in, N, M);
@@ -49,15 +56,10 @@ namespace pticm {
     };
 
     void initialize_replicas(PTWorker& w) {
-        // std::unique_ptr<bool[]> init_state = std::make_unique<bool[]>(w.p.vcount());
-        // if (w.wid == 0) {
-
+        // initialize replicas with the predetermined temperatures and random starting values
         std::bernoulli_distribution init_gen(0.5);
-        // }
-        // MPI_Bcast(init_state.get(), w.p.vcount(), MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
         w.replicas = std::vector<Replica>(w.loc_r);
         StateVector init_vector (w.p.vcount());
-        fflush(stdout);
         for (size_t i = 0; i < w.loc_r; i++) {
             for (uint64_t j = 0; j < w.p.vcount(); j++) {
                 init_vector[j] = init_gen(w.p.get_rng());
@@ -68,6 +70,7 @@ namespace pticm {
         }
     };
     void initialize_replica_exchanges(PTWorker& w) {
+        // initialize data structures needed for replica exchange in the manager
         if (w.wid == 0) {
             size_t Nt = w.params.Nt;
 
@@ -91,20 +94,24 @@ namespace pticm {
         w.energy_values_local = new double [w.loc_r];
     };
 
-    // initialize worker data
+    
     void initialize_temperatures(PTWorker& w) {
+
         Parameters& par = w.params;
         if (w.wid == 0) {
             w.beta_values = new double[par.Nt * 2];
+            // if preprocessing enabled, use multihistogram method for a CAE scheme
             if (w.params.preprocess) {
                 get_beta(w, 2, 1e-1, 0.3, 5000);
             } else {
+                // otherwise linearly space the temps between low and high
                 beta_linspace(w.beta_values, w.params.T0, w.params.T1, w.params.Nt, w.params.inverse);
             }
         }
+        // number of replicas might have changed in preprocessing, broadcast again
         MPI_Bcast((void*)&w.params.Nt, 1, MPI_UINT64_T, 0, MPI_COMM_WORLD);
-        uint64_t Nt = w.params.Nt;
-        // Number of replicas to be handled by each worker
+        uint64_t Nt = w.params.Nt; 
+        // If there are more processes than replicas, try again bud (MPI doesn't allow for dynamic process retirement)
         if (Nt * 2 < w.numw) {
             if (w.wid == 0)
                 fprintf(stderr,
@@ -112,19 +119,22 @@ namespace pticm {
             MPI_Finalize();
             exit(0);
         } 
+        // number of processes per worker (rounded down)
         w.worker_r = Nt * 2 / w.numw;
+        // if need be, assign the extra replicas to the last worker (could also redistribute evenly)
         uint64_t regular = w.worker_r * w.numw;
         w.last_r = w.worker_r;
         if ((Nt * 2) != regular) {
             w.last_r += (Nt * 2) - regular; 
         }
-        // std::cout <<  w.wid << " " << w.loc_r << std::endl;
-        // getchar();
-        // local problem declaration
+        // number of replicas in *this* worker
         w.loc_r = w.wid != w.numw - 1 ? w.worker_r : w.last_r;
+        // the beta values and chain indices for the local workers
         w.beta_values_local = new double[w.loc_r];
         w.chain_index_local = new uint8_t[w.loc_r];
+
         if (w.wid == 0) {
+            // if manager, store global replica info (to start, just assign sequentially)
             w.swaps = 0;
             w.replica_workers = new int[par.Nt * 2];
             w.chain_index_global = new uint8_t [par.Nt * 2];
@@ -139,39 +149,39 @@ namespace pticm {
                 w.replica_workers[ind] = w.numw - 1;
                 w.chain_index_global[ind] = ind >= par.Nt; 
             }
-            // Determine the starting beta values for each replica
-
-            // beta_linspace(w.beta_values, w.params.T0, w.params.T1, par.Nt, w.params.inverse);
+            // determine number of replicas to be used for ICM
             w.Nc = 0;
-            for (size_t i = 0; i < par.Nt; i++) {
-                if (w.beta_values[i] > w.characteristic_scale) {
+            for (size_t i = par.Nt-1; i >= 0; i--) {
+                if (w.beta_values[i] < w.characteristic_scale) {
                     break;
                 }
                 w.Nc ++;
             }
+            // double the beta values for the 2 chains
             std::memcpy(w.beta_values + par.Nt, w.beta_values, par.Nt * sizeof(double));
-            // copy to the beta values for worker 0
+            // copy to the local values for worker 0
             std::memcpy(w.chain_index_local, w.chain_index_global, w.loc_r * sizeof(uint8_t));
             std::memcpy(w.beta_values_local, w.beta_values, w.loc_r * sizeof(double));
-            // send local beta values to each other worker
+            // send local beta values and chain indices to each worker
             for (uint64_t i = 1; i < w.numw - 1; i++) {
                 double* start_pointer = i * w.worker_r + w.beta_values;
                 MPI_Send(start_pointer, w.worker_r, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
                 uint8_t* start_chain_pointer = i * w.worker_r + w.chain_index_global;
                 MPI_Send(start_chain_pointer, w.worker_r, MPI_UNSIGNED_CHAR, i, 0, MPI_COMM_WORLD);
             }
+            // if there is more than one worker, send the beta and chain info to the last worker (possibly special case)
             if (w.numw > 1) {
-                // send to final
                 double* start_pointer = (w.numw - 1) * w.worker_r + w.beta_values;
                 MPI_Send(start_pointer, w.last_r, MPI_DOUBLE, w.numw - 1, 0, MPI_COMM_WORLD);
                 uint8_t* start_chain_pointer = (w.numw - 1) * w.worker_r + w.chain_index_global;
                 MPI_Send(start_chain_pointer, w.last_r, MPI_UNSIGNED_CHAR, w.numw - 1, 0, MPI_COMM_WORLD);
             }
         } else {
+            // not the manager, get the local beta and chain index values
             MPI_Recv(w.beta_values_local, w.loc_r, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, &w.stat);
             MPI_Recv(w.chain_index_local, w.loc_r, MPI_UNSIGNED_CHAR, 0, 0, MPI_COMM_WORLD, &w.stat);
         }
+        // broadcast the icm replica counts
         MPI_Bcast(&w.Nc, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
-        MPI_Bcast(&w.params.icm, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
     };
 } // namespace pticm

@@ -2,6 +2,7 @@
 
 #include "utils.hh"
 namespace pticm {
+    // store problem matrix for MPI transmission
     void Problem::serialize(double* weights, int* src, int* dest) {
         if (sparse) {
             uint64_t ind = 0;
@@ -27,7 +28,7 @@ namespace pticm {
             }
         }
     };
-
+    // calculate enegy and energy change vector for a given starting state
     double Problem::calculate_dE (std::vector<double>& dE, const StateVector& s) const {
         double ene = 0.0;
         double ene_term;
@@ -91,7 +92,7 @@ namespace pticm {
     // #endif
         return ene;
     };
-
+    // calculate energy from a given state
     double Problem::energy (bool* s) const {
         double ene = 0.0;
         for (uint64_t i = 0; i < N; i++) {
@@ -109,7 +110,8 @@ namespace pticm {
             }
         }
         return ene;
-    };;
+    };
+    // calculate energy from a given state
     double Problem::energy (const StateVector& s) const {
         double ene = 0.0;
         for (uint64_t i = 0; i < N; i++) {
@@ -128,6 +130,8 @@ namespace pticm {
         }
         return ene;
     };
+
+    // calculate maxcut value from a given state
     double Problem::maxcut(const StateVector& s) const {
         double cut = 0.0;
         for (uint64_t i = 0; i < N; i++) {
@@ -165,7 +169,7 @@ namespace pticm {
             }
         }
     }
-
+    // construct problem by reading GSET-formatted file
     Problem::Problem(std::string path, uint64_t seed, uint64_t _burn_in): rng_engine(seed), burn_in(_burn_in) {
         std::fstream infile;
         infile.open(path, std::fstream::in);

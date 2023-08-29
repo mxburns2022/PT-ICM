@@ -3,6 +3,7 @@
 #include <random>
 #include "definitions.hh"
 namespace pticm {
+    // class to store problem information
     class Problem {
         private:
             bool sparse; // if the problem is sparse (in which case the matrix is an edgelist)

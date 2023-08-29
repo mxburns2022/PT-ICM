@@ -45,7 +45,6 @@ namespace pticm {
             inline double get_best_ene() const { return best_ene; }
             inline const std::list<double>& get_ene_log() const { return ene_log; }
 
-            void exchange(Replica& other);
             void log();
             Replica& operator=(const Replica& other){
                 state = other.state;

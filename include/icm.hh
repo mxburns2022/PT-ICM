@@ -2,6 +2,7 @@
 #define ICM
 #include "mpi_defs.hh"
 namespace pticm {
+    // ICM implementation functions
     void check_icm (PTWorker& w);
     void icm (PTWorker& w, 
             size_t target_replica);

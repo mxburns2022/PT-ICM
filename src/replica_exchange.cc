@@ -1,6 +1,7 @@
 #include "pt_icm.hh"
 #include "replica_exchange.hh"
 namespace pticm {
+    // attempt replica exchange using metropolis-hastings criterion
     void try_replica_exchange(PTWorker& w,
                             uint8_t chain_index) {
         assert(w.wid == 0);
@@ -25,7 +26,7 @@ namespace pticm {
                     w.energy_values_global[replica_2_ind]; 
         double log_boltzmann = dBeta * dE;
         double rndcomp = std::log(w.p.rand_double());
-        if (w.params.verbosity >= 2) {
+        if (w.params.verbosity >= 3) {
             std::cout << "\n\n(%d %d)\ndB: " << dBeta << std::endl;
             std::cout << "dE: " << dE << std::endl;
             std::cout << "B1: " << beta_low << " B2:" << beta_high  << std::endl;
@@ -35,6 +36,7 @@ namespace pticm {
             std::cout<< "RND: " <<  rndcomp << std::endl;
         }
         // getchar();
+        // attempt replica exchange using metropolis-hastings criterion
         if ((dE * dBeta) > 0 || rndcomp < log_boltzmann) {
             w.swap_successes[chain_exchange_index] ++;
             if (w.params.verbosity >= 2) {
@@ -43,10 +45,12 @@ namespace pticm {
             }
             w.swaps ++;
             bool swap = true;
+            //NOTE: do_replica_exchange_local will automatically perform both swaps if the same worker has both replicas
             if (worker_1 == 0) {
+                // perform the replica exchange in replica 1 locally
                 do_replica_exchange_local(w, beta_low, beta_high, chain_index);
             } else {
-                // send the old and new beta values
+                // send the old and new beta values to worker 1
                 MPI_Send(&swap, 1, MPI_CXX_BOOL, worker_1, 0, MPI_COMM_WORLD);
                 MPI_Send(&beta_high, 1, MPI_DOUBLE, worker_1, 0, MPI_COMM_WORLD);
                 MPI_Send(&beta_low, 1, MPI_DOUBLE, worker_1, 0, MPI_COMM_WORLD);
@@ -56,6 +60,7 @@ namespace pticm {
             // send info to worker with the second replica
             if (worker_1 != worker_2) {
                 if (worker_2 == 0) {
+                    // perform the replica exchange in replica 2 locally
                     do_replica_exchange_local(w, beta_high, beta_low, chain_index);
                 } else {
                     // send the old and new beta values
@@ -65,8 +70,10 @@ namespace pticm {
                     MPI_Send(&chain_index, 1, MPI_UNSIGNED_CHAR, worker_2, 0, MPI_COMM_WORLD);
                 }
             }
+            // swap the beta indices
             std::swap(w.beta_indices[chain_exchange_index], w.beta_indices[chain_exchange_index + 1]);
         } else {
+            // tell the workers that no swap will occur
             bool swap = false;
             if (worker_1 != 0)
                 MPI_Send(&swap, 1, MPI_CXX_BOOL, worker_1, 0, MPI_COMM_WORLD);
@@ -91,25 +98,24 @@ namespace pticm {
         }
         
     };
+
+    // swap the replica beta values locally if the exchange was accepted
     void do_replica_exchange_local(PTWorker& w, 
                                 double beta_old, 
                                 double beta_new,
                                 uint8_t chain_index) {
-        //  std::cout << w.wid << " " << beta_old << " " << beta_new << std::endl;
-        //  std::cout << std::vector<double>(w.beta_values_local, w.beta_values_local + w.loc_r) << "\n"; 
+    
         bool check = false;
         for (uint64_t j = 0; j < w.loc_r; j++) {
-            // printf("(%d, %f) ", w.chain_index_local[j], w.beta_values_local[j]);
+            // will perform both swaps if the worker contains both beta_old and beta_new replicas in `chain_index`
             if (std::abs(w.beta_values_local[j] - beta_new) < 1e-10 && w.chain_index_local[j] == chain_index) {
                 Replica& r = w.replicas[j];
-                // printf("\nWorker %d replacing %f (%f) with %f\n", w.wid, r.get_beta(), w.beta_values_local[j], beta_old);
                 w.beta_values_local[j] = beta_old;
                 r.set_beta(beta_old);
                 check = true;
             }
             else if (std::abs(w.beta_values_local[j] - beta_old) < 1e-10 && w.chain_index_local[j] == chain_index) {
                 Replica& r = w.replicas[j];
-                // printf("\nWorker %d replacing %f (%f) with %f\n", w.wid, r.get_beta(), w.beta_values_local[j], beta_new);
                 w.beta_values_local[j] = beta_new;
                 r.set_beta(beta_new);
                 check = true;
@@ -117,6 +123,8 @@ namespace pticm {
         }   
         assert(check);
     };
+
+    // check for messages from manager regarding replica exchanges
     void check_for_replica_exchange(PTWorker& w) {
         bool exchange = false;
         MPI_Recv(&exchange, 1, MPI_CXX_BOOL, 0, 0, MPI_COMM_WORLD, &w.stat);

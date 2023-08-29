@@ -16,12 +16,16 @@ namespace pticm {
      *          Z_k=\sum_E \frac{\sum_i N_i(E)}{\sum_j n_j Z_j^{-1} exp[(\beta_k - \beta_i) E]}
      *      until a fixed point is reached. We start out with some initial estimate, then iterate until convergence
      * 
-     * For now, let's just try for a single histogram method for simplicity. The above algorithm will be implemented later on, if and when I deem it necessary
-     * Single histogram just runs at one temperature, and is much simpler to reconstruct. It'll go off track, but it should be "good enough"
     */
     // construct a single temperature and record energy levels
     // void gather_samples(PTWorker& w, double beta, size_t num_samples);
     // Given the samples gathered in the sample stage, iteratively calculate an array of beta values such that P(\beta_i<->\beta_{i+1}) = r 
-    void get_beta(PTWorker& w, double beta_hist, double beta_0, double step_size, double r, size_t num_temps, size_t num_samples);
+    void get_beta(PTWorker& w, 
+                  double beta_hist, 
+                  double beta_0, 
+                  double step_size, 
+                  double r, 
+                  size_t num_temps, 
+                  size_t num_samples);
 }; // namespace pticm
 #endif 

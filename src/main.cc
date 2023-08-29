@@ -7,6 +7,7 @@
 #include "mpi_utils.hh"
 
 namespace po = boost::program_options;
+// parse command line (self explanatory)
 int parse_args (int argc, 
                  char** argv,
                  std::string& problem_path,
@@ -22,6 +23,7 @@ int parse_args (int argc,
     params.T1 = 2.8;
     params.verbosity = 0;
 #ifdef BOOST
+    // for some reason bluehive can't find libboost_program_options, need to figure out at some point
     po::options_description desc("Allowed options");
      desc.add_options()
         ("help,h", "produce help message")
@@ -62,11 +64,6 @@ int parse_args (int argc,
 #else
     for (int i = 0; i < argc; i++) {
         std::string param = argv[i];
-        if (param == "--help" || param == "-h") {
-            assert(i < argc - 1);
-            params.pts = std::atol(argv[++i]);
-            
-        } else 
         if (param == "--seed" || param == "-s") {
             assert(i < argc - 1);
             params.seed = std::atol(argv[++i]);
@@ -160,18 +157,10 @@ int main(int argc, char** argv) {
     pticm::create_datatype(parameter_type);
     // send the relavent parameters to each worker
     MPI_Bcast((void*)&w.params, 1, parameter_type, 0, MPI_COMM_WORLD);
-    uint64_t Nt = w.params.Nt;
-    // Number of replicas to be handled by each worker
-    w.worker_r = Nt * 2 / w.numw;
-    uint64_t regular = w.worker_r * w.numw;
-    w.last_r = w.worker_r;
-    if (Nt != regular) {
-        w.last_r += (Nt * 2) - regular; 
-    }
-    // local problem declaration
-    w.loc_r = w.wid != w.numw - 1 ? w.worker_r : w.last_r;
+    // solve the problem
     pticm::solve(w, problem_path);
     MPI_Finalize();
+    //__IGNORE BELOW__ Keeping for future reference, from an older version of the code that calculated thermodynamic observables
     // // local data structures
     // std::unique_ptr<int[]> replica_workers;
     // std::unique_ptr<double[]> beta_values;

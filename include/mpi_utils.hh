@@ -3,6 +3,7 @@
 #include "mpi_defs.hh"
 
 namespace pticm {
+    // utilities for MPI workers
     void free_worker (PTWorker& w);
     uint64_t get_flips(PTWorker& w);
     void gather_energy_values(PTWorker& w);
