@@ -23,17 +23,18 @@ namespace pticm {
         // Create a datatype to store parameter information
         const int nitems=2;
         int          param_blocklengths[] = {1,
-                                            1,
-                                            1,
-                                            1,
-                                            1,
-                                            1,
-                                            1,
-                                            1,
-                                            1,
-                                            1,
-                                            1,
-                                            1};
+                                             1,
+                                             1,
+                                             1,
+                                             1,
+                                             1,
+                                             1,
+                                             1,
+                                             1,
+                                             1,
+                                             1,
+                                             1,
+                                             1};
         MPI_Datatype param_types[] = {MPI_UNSIGNED_LONG, // seed
                                     MPI_UNSIGNED_LONG, // Nt
                                     MPI_UNSIGNED_LONG, // pts
@@ -64,10 +65,10 @@ namespace pticm {
         param_offsets[runner++] = offsetof(Parameters, log_data);
         param_offsets[runner++] = offsetof(Parameters, icm);
         MPI_Type_create_struct(runner,
-                            param_blocklengths,
-                            param_offsets,
-                            param_types,
-                            &param_type);
+                                param_blocklengths,
+                                param_offsets,
+                                 param_types,
+                                 &param_type);
         MPI_Type_commit(&param_type);
     }; 
 
