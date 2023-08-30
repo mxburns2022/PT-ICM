@@ -137,12 +137,15 @@ namespace pticm {
             // std::cout << best_ene << " " << w.p.maxcut(best_state) << " " << flips << " " << w.swaps << " " << w.params.seed << std::endl;
             // std::cout << best_state << std::endl;
             // std::cout << std::vector<double> (w.beta_values, w.beta_values + w.params.Nt) << "\n";
-            fmt::print("{::.6f}\n", swap_rates);
-            fmt::print("{}\n", w.swap_attempts);
-            fmt::print("{}\n", w.swap_successes);
-            fmt::print("{}\n", w.p.energy(best_state));
-            fmt::print("{} {} {} {} {}\n", best_ene, w.p.maxcut(best_state), flips, w.swaps, w.params.seed);
-            fmt::print("{::d}\n", best_state);
+            fmt::print("swap_rates: {::.6f}\n", swap_rates);
+            fmt::print("swap_attempts: {}\n", w.swap_attempts);
+            fmt::print("swap_successes: {}\n", w.swap_successes);
+            fmt::print("best_state_energy: {}\n", w.p.energy(best_state));
+            fmt::print("best_energy: {} \n", best_ene);
+            fmt::print("best_maxcut: {}\n", w.p.maxcut(best_state));
+            fmt::print("num_of_flips: {}\n", flips);
+            fmt::print("num_of_swaps: {}\n", w.swaps);
+            fmt::print("best_state: {::d}\n", best_state);
             fmt::print("{::.6f}\n", std::vector<double> (w.beta_values, w.beta_values + w.params.Nt));
         }
         MPI_Barrier(MPI_COMM_WORLD);

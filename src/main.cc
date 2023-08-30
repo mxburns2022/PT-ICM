@@ -69,6 +69,20 @@ int parse_args (int argc,
     return 0;
 }
 
+void print_args(pticm::Parameters& params) {
+    std::cout << "Seed: " << params.seed << std::endl;
+    std::cout << "Replicas: " << params.Nt << std::endl;
+    std::cout << "Sweeps: " << params.sweeps << std::endl;
+    std::cout << "PT Steps: " << params.pts << std::endl;
+    std::cout << "Burn-in: " << params.burn_in << std::endl;
+    std::cout << "T0: " << params.T0 << std::endl;
+    std::cout << "T1: " << params.T1 << std::endl;
+    std::cout << "Inverse: " << params.inverse << std::endl;
+    std::cout << "Preprocess: " << params.preprocess << std::endl;
+    std::cout << "Log Data: " << params.log_data << std::endl;
+    std::cout << "ICM: " << params.icm << std::endl;
+    std::cout << "Verbosity: " << params.verbosity << std::endl;
+}
 
 int main(int argc, char** argv) {
     MPI_Init(NULL, NULL);
@@ -89,6 +103,7 @@ int main(int argc, char** argv) {
                                problem_path,
                                w.params);
     }
+    print_args(w.params);
     // broadcast the parsing result, exit if help message displayed
     MPI_Bcast(&help_disp, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Barrier(MPI_COMM_WORLD);
