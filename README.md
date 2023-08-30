@@ -6,14 +6,29 @@ An implementation of Parallel Tempering with Isoenergetic Cluster Moves (ICM). T
 
 ### Dependencies
 
+#### Method 1: Docker
+
 1. [Install Docker](https://docs.docker.com/install/) and VS Code [Dev containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension.
 
 2. Open the workspace, switch to the branch you want to work on, and VS Code will prompt you to build the container. This will take a while the first time, but subsequent builds will be faster. If prompt is not shown, you can build the container manually by running the command `Remote-Containers: Rebuild Container` from the command palette.
 
 Now you have the environment with `mpc++`, `cmake`. It won't mess up your local environment. Also you can install your favorite VS Code extensions in the container.
 
+#### Method 2: Local / Bluehive
+
+Load neccessary modules.
+
 ### Building
 
 1. From PT_ICM directory: `mkdir build;cd build`. Creates a `build` directory and enters into it.
 2. `cmake ..`: Builds in "Release" mode by default, will look for Boost libraries for arg parsing
 3. `make`: Build the project. It will also build a static library `libreplica.a` for general Metropolis-Hastings replica utility use.
+
+### Parameters
+
+- `-g` Path to the input graph file
+- `--preprocess` the temperatures will be linearly spaced
+- `--inverse` enable linearly spacing the inverse temperatures instead of the temperatures themselves
+- `-T0` and `-T1` the lowest and highest temperatures to use. If `--inverse` is passed, they should be converted to the inverse temperatures. (2.5 -> 0.4)
+- `-pts` parallel tempering steps, 20,000 - 40,000 is enough for G022 (200 nodes) 
+- `--icm` disable or enable ICM
