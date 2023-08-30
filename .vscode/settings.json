@@ -69,6 +69,7 @@
         "cfenv": "cpp",
         "any": "cpp",
         "charconv": "cpp",
-        "ranges": "cpp"
+        "ranges": "cpp",
+        "codecvt": "cpp"
     }
 }

@@ -6,6 +6,10 @@
 #include "utils.hh"
 #include "initialization.hh"
 #include "definitions.hh"
+#define FMT_HEADER_ONLY
+#include "fmt/core.h"
+#include "fmt/ranges.h"
+
 // #include <boost/timer/progress_display.hpp>
 // namespace bt = boost::timer; 
 namespace pticm {
@@ -126,14 +130,20 @@ namespace pticm {
         uint64_t flips = get_flips(w);
         if (w.wid == 0) {
             std::vector<double> swap_rates = w.swap_successes / w.swap_attempts;
-            std::cout << swap_rates << std::endl;
-            std::cout << w.swap_attempts << std::endl;
-            std::cout << w.swap_successes << std::endl;
-
-            std::cout << w.p.energy(best_state) << std::endl;
-            std::cout << best_ene << " " << w.p.maxcut(best_state) << " " << flips << " " << w.swaps << " " << w.params.seed << std::endl;
-            std::cout << best_state << std::endl;
-            std::cout << std::vector<double> (w.beta_values, w.beta_values + w.params.Nt) << "\n";
+            // std::cout << swap_rates << std::endl;
+            // std::cout << w.swap_attempts << std::endl;
+            // std::cout << w.swap_successes << std::endl;
+            // std::cout << w.p.energy(best_state) << std::endl;
+            // std::cout << best_ene << " " << w.p.maxcut(best_state) << " " << flips << " " << w.swaps << " " << w.params.seed << std::endl;
+            // std::cout << best_state << std::endl;
+            // std::cout << std::vector<double> (w.beta_values, w.beta_values + w.params.Nt) << "\n";
+            fmt::print("{::.6f}\n", swap_rates);
+            fmt::print("{}\n", w.swap_attempts);
+            fmt::print("{}\n", w.swap_successes);
+            fmt::print("{}\n", w.p.energy(best_state));
+            fmt::print("{} {} {} {} {}\n", best_ene, w.p.maxcut(best_state), flips, w.swaps, w.params.seed);
+            fmt::print("{::d}\n", best_state);
+            fmt::print("{::.6f}\n", std::vector<double> (w.beta_values, w.beta_values + w.params.Nt));
         }
         MPI_Barrier(MPI_COMM_WORLD);
         free_worker(w);
