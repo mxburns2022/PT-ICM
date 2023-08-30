@@ -1,0 +1,40 @@
+name: CMake 
+
+on:
+  push:
+    branches: [ "optimize" ]
+  pull_request:
+    branches: [ "optimize" ]
+    
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        ref: optimize
+        
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt install -y openmpi-bin openmpi-common openmpi-doc libopenmpi-dev libboost-all-dev
+      
+    - name: Configure CMake
+      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
+      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+
+    - name: Build
+      # Build your program with the given configuration
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+
+    - name: Wrap up
+      run: tar czvf PT-ICM_linux-x86.tar.gz build/
+      
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: PT-ICM_linux-x86
+        path: ${{github.workspace}}/PT-ICM_linux-x86.tar.gz
