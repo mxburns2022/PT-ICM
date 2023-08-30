@@ -5,6 +5,7 @@
 #include <boost/program_options.hpp>
 #include "solver.hh"
 #include "mpi_utils.hh"
+#include "argparse/argparse.hpp"
 
 namespace po = boost::program_options;
 // parse command line (self explanatory)
@@ -22,108 +23,50 @@ int parse_args (int argc,
     params.T0 = 0.6;
     params.T1 = 2.8;
     params.verbosity = 0;
-#ifdef BOOST
-    // for some reason bluehive can't find libboost_program_options, need to figure out at some point
-    po::options_description desc("Allowed options");
-     desc.add_options()
-        ("help,h", "produce help message")
-        ("seed,s", po::value<uint64_t>()->default_value(time(NULL)), "random seed")
-        ("problem,p", po::value<std::string>(), "path to problem file (GSET)")
-        ("burn_in,b", po::value<uint64_t>()->default_value(500), "number of MCMC burn-in steps before logging")
-        ("sweeps,s", po::value<uint64_t>()->default_value(1), "replica sweeps per parallel tempering step")
-        ("replicas,r", po::value<uint64_t>()->default_value(20), "number of independent temperatures to simulate")
-        ("pts", po::value<uint64_t>()->default_value(2000), "number of parallel tempering steps (one sweep per replica, one replica exchange attempt, one ICM)")
-        ("temp0,T0", po::value<double>()->default_value(0.6), "Starting temperature")
-        ("temp1,T1", po::value<double>()->default_value(2.8), "Ending temperature")
-        ("inverse,i", po::bool_switch(&params.inverse), "Interpret temperatures as inverted")
-        ("preprocess", po::bool_switch(&params.preprocess), "Enable CAE temperature selection")
-        ("log", po::bool_switch(&params.log_data), "Log data and calculate observables (u and c)")
-        ("icm", po::bool_switch(&params.icm), "Enable isoenergetic cluster moves (ICM)")
-        ("verbose", po::value<uint32_t>()->default_value(0), "Verbosity level (0 for minimal messages, 1 for periodic updates, 2 for debugging)")
-    ;
+    argparse::ArgumentParser program("pt_icm", "1.0");
+    program.add_argument("-s", "--seed").help("random seed").default_value((uint64_t) time(NULL)).scan<'u', uint64_t>();
+    program.add_argument("-p", "--problem").help("path to problem file (GSET)").required();
+    program.add_argument("-b", "--burn_in").help("number of MCMC burn-in steps before logging").default_value((uint64_t)500).scan<'u', uint64_t>();
+    program.add_argument("--sweeps").help("replica sweeps per parallel tempering step").default_value((uint64_t)1).scan<'u', uint64_t>();
+    program.add_argument("-r", "--replicas").help("number of independent temperatures to simulate").default_value((uint64_t)20).scan<'u', uint64_t>();
+    program.add_argument("--pts").help("number of parallel tempering steps (one sweep per replica, one replica exchange attempt, one ICM)").default_value((uint64_t)2000).scan<'u', uint64_t>();
+    program.add_argument("-T0", "--temp0").help("Starting temperature").default_value((double)0.6).scan<'f', double>();
+    program.add_argument("-T1", "--temp1").help("Ending temperature").default_value((double)2.8).scan<'f', double>();
+    program.add_argument("-i", "--inverse").help("Interpret temperatures as inverted").default_value(false).implicit_value(true);
+    program.add_argument("--preprocess").help("Enable CAE temperature selection").default_value(false).implicit_value(true);
+    program.add_argument("--log").help("Log data and calculate observables (u and c)").default_value(false).implicit_value(true);
+    program.add_argument("--icm").help("Enable isoenergetic cluster moves (ICM)").default_value(false).implicit_value(true);
+    program.add_argument("--verbose").help("Verbosity level (0 for minimal messages, 1 for periodic updates, 2 for debugging)").default_value((uint32_t)0).scan<'u', uint32_t>();
 
-    po::variables_map opts;
-    po::store(po::parse_command_line(argc, argv, desc), opts);
-    if (opts.count("help")) {
-        std::cout << desc << std::endl;
-        return -1;
+    try {
+        program.parse_args(argc, argv);
+    } catch (const std::runtime_error& err) {
+        std::cout << err.what() << std::endl;
+        std::cout << program;
+        return false;
     }
-    problem_path = opts["problem"].as<std::string>();
-    params.seed = opts["seed"].as<uint64_t>();
-    params.Nt = opts["replicas"].as<uint64_t>();
-    params.sweeps = opts["sweeps"].as<uint64_t>();
-    params.pts = opts["pts"].as<uint64_t>();
-    params.burn_in = opts["burn_in"].as<uint64_t>();
-    params.T0 = opts["temp0"].as<double>();
-    params.T1 = opts["temp1"].as<double>();
-    params.verbosity = opts["verbose"].as<uint32_t>();
-    params.icm = opts["icm"].as<bool>();
-    params.preprocess = opts["preprocess"].as<bool>();
-    params.log_data = opts["log"].as<bool>();
-    params.inverse = opts["inverse"].as<bool>();
-#else
-    for (int i = 0; i < argc; i++) {
-        std::string param = argv[i];
-        if (param == "--seed" || param == "-s") {
-            assert(i < argc - 1);
-            params.seed = std::atol(argv[++i]);
-            
-        } else 
-        if (param == "--problem" || param == "-p") {
-            assert(i < argc - 1);
-            problem_path = argv[++i];
-            
-        } else 
-        if (param == "--burn_in" || param == "-b") {
-            assert(i < argc - 1);
-            params.burn_in = std::atol(argv[++i]);
-            
-        } else 
-        if (param == "--sweeps") {
-            assert(i < argc - 1);
-            params.sweeps = std::atol(argv[++i]);
-            
-        } else 
-        if (param == "--replicas" || param == "-r") {
-            assert(i < argc - 1);
-            params.Nt = std::atol(argv[++i]);
-            
-        } else 
-        if (param == "--pts") {
-            assert(i < argc - 1);
-            params.pts = std::atol(argv[++i]);
-        } else 
-        if (param == "--temp0" || param == "-T0") {
-            assert(i < argc - 1);
-            params.T0 = std::atof(argv[++i]);
-            
-        } else 
-        if (param == "--temp1" || param == "-T1") {
-            assert(i < argc - 1);
-            params.T1 = std::atof(argv[++i]);
-            
-        } else 
-        if (param == "--inverse") {
-            params.inverse = true;
-        } else 
-        if (param == "--log") {
-            params.log_data = true;
-        } else 
-        if (param == "--icm") {
-            params.icm = true;
-        } else 
-        if (param == "--preprocess") {
-            params.preprocess = true;
-        } else 
-        if (param == "--verbose") {
-            assert(i < argc - 1);
-            params.verbosity = std::atol(argv[++i]);
-        } 
+
+    // Show help
+    if (program["--help"] == true) {
+        std::cout << program;
+        return false;
     }
-#endif
     
-    return 0;
+    problem_path = program.get<std::string>("--problem");
+    params.seed = program.get<uint64_t>("--seed");
+    params.Nt = program.get<uint64_t>("--replicas");
+    params.sweeps = program.get<uint64_t>("--sweeps");
+    params.pts = program.get<uint64_t>("--pts");
+    params.burn_in = program.get<uint64_t>("--burn_in");
+    params.T0 = program.get<double>("--temp0");
+    params.T1 = program.get<double>("--temp1");
+    params.icm = program.get<bool>("--icm");
+    params.preprocess = program.get<bool>("--preprocess");
+    params.log_data = program.get<bool>("--log");
+    params.inverse = program.get<bool>("--inverse");
+    params.verbosity = program.get<uint32_t>("--verbose");
 
+    return 0;
 }
 
 

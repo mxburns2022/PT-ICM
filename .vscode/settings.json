@@ -66,6 +66,9 @@
         "thread": "cpp",
         "strstream": "cpp",
         "iomanip": "cpp",
-        "cfenv": "cpp"
+        "cfenv": "cpp",
+        "any": "cpp",
+        "charconv": "cpp",
+        "ranges": "cpp"
     }
 }
