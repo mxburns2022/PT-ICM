@@ -1,5 +1,7 @@
 # PT-ICM
 
+[![CMake](https://github.com/mxburns2022/PT-ICM/actions/workflows/build.yml/badge.svg)](https://github.com/mxburns2022/PT-ICM/actions/workflows/build.yml)
+
 An implementation of Parallel Tempering with Isoenergetic Cluster Moves (ICM). The parallel tempering code implements the (NN)_a / M-H scheme described in Malakis et al. 2013. If the `--preprocess` flag is passed, then the code will use a multihistogram method to estimate the density of states and space the temperatures to ensure a constant acceptance rate (described in Bittner et. al 2008), otherwise it will linearly space between the temperatures given. ICMs were proposed and described in Zhu et al. 2015 "Efficient Cluster Algorithm for Spin Glasses in Any Space Dimension". The implementation here still requires testing for the expected efficiency gains.
 
 ## Build & Run
@@ -30,5 +32,5 @@ Load neccessary modules.
 - `--preprocess` the temperatures will be linearly spaced
 - `--inverse` enable linearly spacing the inverse temperatures instead of the temperatures themselves
 - `-T0` and `-T1` the lowest and highest temperatures to use. If `--inverse` is passed, they should be converted to the inverse temperatures. (2.5 -> 0.4)
-- `-pts` parallel tempering steps, 20,000 - 40,000 is enough for G022 (200 nodes) 
+- `-pts` parallel tempering steps, 20,000 - 40,000 is enough for G022 (200 nodes)
 - `--icm` disable or enable ICM
