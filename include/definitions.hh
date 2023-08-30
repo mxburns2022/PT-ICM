@@ -17,7 +17,7 @@ namespace pticm {
         }
         out << "]";
         return out;
-    };
+    }
     template <typename T>
     std::ostream& operator<<(std::ostream& out, std::list<T> vec){
             out << "[";
@@ -33,7 +33,7 @@ namespace pticm {
         }
         out << "]";
         return out;
-    };
+    }
     template <typename T>
     std::vector<T> operator/(std::vector<T>& left, std::vector<T>& right){
         assert(left.size() == right.size());
@@ -42,7 +42,7 @@ namespace pticm {
             result[i] = left[i] / right[i];
         }
         return result;
-    };
+    }
     template <typename S, typename T>
     std::vector<S> operator/(std::vector<T>& left, std::vector<T>& right){
         assert(left.size() == right.size());
@@ -51,7 +51,7 @@ namespace pticm {
             result[i] = static_cast<S>(left[i]) / static_cast<S>(right[i]);
         }
         return result;
-    };
+    }
     struct Edge {
         uint64_t dest;
         double weight;

@@ -13,7 +13,7 @@ namespace pticm {
 
         }
         sweep_counter ++;
-    };
+    }
     // accept the state change: increments energy, updates dE, flips spin
     void  Replica::mh_accept (Problem& p, uint32_t index) {
         energy += dE[index];
@@ -52,5 +52,5 @@ namespace pticm {
                                       sweep_counter(0) {
         best_ene = DBL_MAX;
         best_state = init_state;
-    };
+    }
 } // namespace pticm

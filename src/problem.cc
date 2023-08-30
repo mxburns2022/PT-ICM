@@ -27,7 +27,7 @@ namespace pticm {
                 curr_val += N;
             }
         }
-    };
+    }
     // calculate enegy and energy change vector for a given starting state
     double Problem::calculate_dE (std::vector<double>& dE, const StateVector& s) const {
         double ene = 0.0;
@@ -91,7 +91,7 @@ namespace pticm {
     //     } 
     // #endif
         return ene;
-    };
+    }
     // calculate energy from a given state
     double Problem::energy (bool* s) const {
         double ene = 0.0;
@@ -110,7 +110,7 @@ namespace pticm {
             }
         }
         return ene;
-    };
+    }
     // calculate energy from a given state
     double Problem::energy (const StateVector& s) const {
         double ene = 0.0;
@@ -129,7 +129,7 @@ namespace pticm {
             }
         }
         return ene;
-    };
+    }
 
     // calculate maxcut value from a given state
     double Problem::maxcut(const StateVector& s) const {
@@ -222,5 +222,5 @@ namespace pticm {
         double variance = sqsum / M - (sum / M * sum / M); // store the variance
         characteristic_scale = std::max(sum / M, variance);
         infile.close();
-    };
+    }
 } // namespace pticm
