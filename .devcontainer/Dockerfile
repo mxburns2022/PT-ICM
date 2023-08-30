@@ -17,4 +17,4 @@ RUN if [ "${REINSTALL_CMAKE_VERSION_FROM_SOURCE}" != "none" ]; then \
 # RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 #     && apt-get -y install --no-install-recommends <your-package-list-here>
 
-RUN sudo apt-get update && sudo apt install -y openmpi-bin openmpi-common openmpi-doc libopenmpi-dev libboost-all-dev
+RUN sudo apt-get update && sudo apt install -y openmpi-bin openmpi-common openmpi-doc libopenmpi-dev

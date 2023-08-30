@@ -6,8 +6,8 @@
 #include "utils.hh"
 #include "initialization.hh"
 #include "definitions.hh"
-#include <boost/timer/progress_display.hpp>
-namespace bt = boost::timer; 
+// #include <boost/timer/progress_display.hpp>
+// namespace bt = boost::timer; 
 namespace pticm {
     void solve(PTWorker& w, std::string& problem_path) {
         MPI_Datatype parameter_type;

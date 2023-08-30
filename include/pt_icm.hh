@@ -9,7 +9,7 @@
 #include <cassert>
 #include <sstream>
 #include <stack>
-#include <boost/dynamic_bitset.hpp>
+// #include <boost/dynamic_bitset.hpp>
 #include "mpi_defs.hh"
 #ifndef PT_ICM
 #define PT_ICM
