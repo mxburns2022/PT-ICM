@@ -5,9 +5,9 @@ from datetime import datetime, timedelta
 from utils import query_yes_no
 import os
 
-ROOT = Path(__file__).parent.parent # Escape from scripts folder
+ROOT = Path(__file__).parent.parent  # Escape from scripts folder
 GRAPH_LOCATION = Path(ROOT, 'example_graphs')
-get_all_files: callable = lambda d : [os.path.join(d, f) for f in os.listdir(d) if os.path.isfile(os.path.join(d, f))]
+get_all_files: callable = lambda d: [os.path.join(d, f) for f in os.listdir(d) if os.path.isfile(os.path.join(d, f))]
 
 CONFIG = defaultdict(list)
 CONFIG['-p'] = list(map(lambda x: os.path.join(GRAPH_LOCATION, x), ['G022', 'G039']))
@@ -20,6 +20,7 @@ CONFIG['--icm'] = ['true', 'false']
 CONFIG['--seed'] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 TOTAL_HOST = 64
 ISODATE = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+
 
 def generate_commands() -> list[str]:
     cmds = []
@@ -36,8 +37,9 @@ def generate_commands() -> list[str]:
         cmds.append(cmd)
     return cmds
 
+
 def run():
-    
+
     header = f"""#!/bin/bash
 #SBATCH -p ising
 #SBATCH -J PT_{ISODATE}
@@ -50,7 +52,6 @@ def run():
 module load mpich;
 module unload gcc;
 module load gcc/9.1.0;
-module load mpich
 """
     cmds = generate_commands()
     slurm_cmds_group = [[] for _ in range(TOTAL_HOST)]
@@ -89,7 +90,7 @@ module load mpich
     # with open("final.sh", 'w') as f:
     #     for i in range(sh_cnt):
     #         f.write(f"sbatch slurm_{i}.sh\n")
-            
+
 # def run() -> None:
 #     now: str = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 #     slurm = Slurm(
@@ -98,7 +99,7 @@ module load mpich
 #         time=timedelta(days=1, hours=2, minutes=3, seconds=4),
 #         partition='ising',
 #     )
-    
+
 #     join_cmd = lambda cmds : ' && '.join([' '.join(cmd) for cmd in cmds])
 
 #     # Split the commands into TOTAL_HOST groups and then join them together
@@ -113,7 +114,7 @@ module load mpich
 #     print(f"You have {len(cmds)} commands to run. Divided into {TOTAL_HOST} groups.\n")
 #     print(f"The header of each slurm script is as follows:\n")
 #     print(slurm)
-    
+
 #     # Submit the jobs
 #     if query_yes_no("Do you want to submit the jobs?"):
 #         print("Submitting jobs...")
@@ -122,6 +123,7 @@ module load mpich
 #             # slurm.sbatch(cmd)
 #     else:
 #         print("Bye")
+
 
 if __name__ == '__main__':
     run()
