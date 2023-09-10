@@ -14,6 +14,7 @@
 // namespace bt = boost::timer; 
 namespace pticm {
     void solve(PTWorker& w, std::string& problem_path) {
+        auto tbeg = MPI_Wtime();
         MPI_Datatype parameter_type;
         create_datatype(parameter_type);
         // send the relavent parameters to each worker
@@ -128,6 +129,9 @@ namespace pticm {
         gather_best_energy_values(w, best_ene, best_state);
         // std::vector<double> final_energies (w.energy_values_local, w.energy_values_local + w.loc_r);
         uint64_t flips = get_flips(w);
+        double elapsedTime = MPI_Wtime() - tbeg;
+        double totalTime;
+        MPI_Reduce( &elapsedTime, &totalTime, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD );
         if (w.wid == 0) {
             std::vector<double> swap_rates = w.swap_successes / w.swap_attempts;
             // std::cout << swap_rates << std::endl;
@@ -147,6 +151,7 @@ namespace pticm {
             fmt::print("num_of_swaps: {}\n", w.swaps);
             fmt::print("best_state: {::d}\n", best_state);
             fmt::print("{::.6f}\n", std::vector<double> (w.beta_values, w.beta_values + w.params.Nt));
+            fmt::print("Total time: {:.6f}\n", totalTime);
         }
         MPI_Barrier(MPI_COMM_WORLD);
         free_worker(w);

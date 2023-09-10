@@ -1,7 +1,6 @@
 #include <time.h>
 #include <sstream>
 #include <cmath>
-#include <chrono>
 // #include <boost/format.hpp>
 // #include <boost/program_options.hpp>
 #include "solver.hh"
@@ -87,7 +86,6 @@ void print_args(pticm::Parameters& params) {
 
 int main(int argc, char** argv) {
     // startup time
-    auto t1 = std::chrono::high_resolution_clock::now();
     MPI_Init(NULL, NULL);
     MPI_Status stat;
 
@@ -105,8 +103,9 @@ int main(int argc, char** argv) {
                                argv,
                                problem_path,
                                w.params);
+        print_args(w.params);
     }
-    print_args(w.params);
+    
     // broadcast the parsing result, exit if help message displayed
     MPI_Bcast(&help_disp, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Barrier(MPI_COMM_WORLD);
@@ -121,10 +120,6 @@ int main(int argc, char** argv) {
     // solve the problem
     pticm::solve(w, problem_path);
     MPI_Finalize();
-    auto t2 = std::chrono::high_resolution_clock::now();
-    auto ms_int = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
-    std::cout << "running time: " << ms_int.count() << "ms" << std::endl;
-    std::cout << "---" << std::endl;
 
     //__IGNORE BELOW__ Keeping for future reference, from an older version of the code that calculated thermodynamic observables
     // // local data structures
