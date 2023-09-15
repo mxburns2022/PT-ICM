@@ -11,11 +11,11 @@ get_all_files: callable = lambda d: [os.path.join(d, f) for f in os.listdir(d) i
 
 CONFIG = defaultdict(list)
 CONFIG['-p'] = list(map(lambda x: os.path.join(GRAPH_LOCATION, x), ['G022', 'G039']))
-CONFIG['-T0'] = [2, 3, 4]
+CONFIG['-T0'] = [15]
 CONFIG['-T1'] = [0.25, 0.5, 0.75]
 CONFIG['--pts'] = [20000, 30000, 40000]
 CONFIG['--inverse'] = ['false']
-CONFIG['--preprocess'] = ['false']
+CONFIG['--preprocess'] = ['true']
 CONFIG['--icm'] = ['true', 'false']
 CONFIG['--seed'] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 TOTAL_HOST = 64
@@ -25,7 +25,7 @@ ISODATE = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 def generate_commands() -> list[str]:
     cmds = []
     for config in product(*CONFIG.values()):
-        cmd = ['mpirun', '-np', '1', './pt_icm']
+        cmd = ['/usr/bin/time','-f', '"%e"', 'mpirun', '-np', '8', '/gpfs/fs1/home/lsun16/Desktop/PT-ICM/build/pt_icm']
         for k, v in zip(CONFIG.keys(), config):
             if v == 'true':
                 cmd.append(k)
@@ -45,7 +45,6 @@ def run():
 #SBATCH -J PT_{ISODATE}
 #SBATCH -e PT_{ISODATE}.err.%j
 #SBATCH -o PT_{ISODATE}.run.%j
-#SBATCH --mem-per-cpu=8GB
 #SBATCH -t 48:00:00
 #SBATCH --cpus-per-task=8
 
@@ -63,7 +62,8 @@ module load gcc/9.1.0;
         with open(os.path.join(Path(__file__).parent, filename), 'w') as f:
             f.write(header)
             for cmd in slurm_cmds_group[i]:
-                f.write(' '.join(cmd) + '\n')
+                f.write(' '.join(cmd) + ' 2>&1\n')
+                f.write('echo "---"\n')
         script_cnt += 1
     with open('final.sh', 'w') as f:
         for i in range(script_cnt):
