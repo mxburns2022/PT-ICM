@@ -27,5 +27,5 @@ namespace pticm {
                   double r, 
                   size_t num_temps, 
                   size_t num_samples);
-}; // namespace pticm
+} // namespace pticm
 #endif 

@@ -67,6 +67,8 @@
         "strstream": "cpp",
         "iomanip": "cpp",
         "cfenv": "cpp",
-        "codecvt": "cpp"
+        "codecvt": "cpp",
+        "any": "cpp",
+        "charconv": "cpp"
     }
 }

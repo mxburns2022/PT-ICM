@@ -200,12 +200,12 @@ namespace pticm {
     Replica& get_replica(PTWorker& w, double beta, uint8_t chain) {
         for (size_t i = 0; i < w.loc_r; i++) {
             Replica& r = w.replicas[i];
-            if (std::abs(beta - r.get_beta()) && chain == w.chain_index_local[i]) {
+            if (std::abs(beta - r.get_beta()) < 1e-10 && chain == w.chain_index_local[i]) {
                 return r;
             }
         }
     
-        // printf("Worker %d %d\n", w.wid, __LINE__);
+        printf("Worker %d %d %d %f %d\n", w.wid, w.loc_r,  chain, beta, __LINE__);
         fflush(stdout);
         exit(-1);
     }

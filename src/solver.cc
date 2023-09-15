@@ -6,10 +6,15 @@
 #include "utils.hh"
 #include "initialization.hh"
 #include "definitions.hh"
-#include <boost/timer/progress_display.hpp>
-namespace bt = boost::timer; 
+#define FMT_HEADER_ONLY
+#include "fmt/core.h"
+#include "fmt/ranges.h"
+
+// #include <boost/timer/progress_display.hpp>
+// namespace bt = boost::timer; 
 namespace pticm {
     void solve(PTWorker& w, std::string& problem_path, double& best_ene, size_t& flips, StateVector& best_state) {
+        auto tbeg = MPI_Wtime();
         MPI_Datatype parameter_type;
         create_datatype(parameter_type);
         // send the relavent parameters to each worker
@@ -72,7 +77,6 @@ namespace pticm {
             
             // send all energy values to manager
             gather_energy_values(w);
-            
             // perform Nt - 1 replica exchange proposals for each chain
             for (size_t m = 0; m < w.params.Nt - 1; m++) {
                 if (w.wid == 0){
@@ -131,16 +135,29 @@ namespace pticm {
         gather_best_energy_values(w, best_ene, best_state);
         // std::vector<double> final_energies (w.energy_values_local, w.energy_values_local + w.loc_r);
         flips = get_flips(w);
+        double elapsedTime = MPI_Wtime() - tbeg;
+        double totalTime;
+        MPI_Reduce( &elapsedTime, &totalTime, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD );
         if (w.wid == 0) {
             std::vector<double> swap_rates = w.swap_successes / w.swap_attempts;
-            std::cout << swap_rates << std::endl;
-            std::cout << w.swap_attempts << std::endl;
-            std::cout << w.swap_successes << std::endl;
-
-            std::cout << w.p.energy(best_state) << std::endl;
-            std::cout << best_ene << " " << w.p.maxcut(best_state) << " " << flips << " " << w.swaps << " " << w.params.seed << std::endl;
-            std::cout << best_state << std::endl;
-            std::cout << std::vector<double> (w.beta_values, w.beta_values + w.params.Nt) << "\n";
+            // std::cout << swap_rates << std::endl;
+            // std::cout << w.swap_attempts << std::endl;
+            // std::cout << w.swap_successes << std::endl;
+            // std::cout << w.p.energy(best_state) << std::endl;
+            // std::cout << best_ene << " " << w.p.maxcut(best_state) << " " << flips << " " << w.swaps << " " << w.params.seed << std::endl;
+            // std::cout << best_state << std::endl;
+            // std::cout << std::vector<double> (w.beta_values, w.beta_values + w.params.Nt) << "\n";
+            fmt::print("swap_rates: {::.6f}\n", swap_rates);
+            fmt::print("swap_attempts: {}\n", w.swap_attempts);
+            fmt::print("swap_successes: {}\n", w.swap_successes);
+            fmt::print("best_state_energy: {}\n", w.p.energy(best_state));
+            fmt::print("best_energy: {} \n", best_ene);
+            fmt::print("best_maxcut: {}\n", w.p.maxcut(best_state));
+            fmt::print("num_of_flips: {}\n", flips);
+            fmt::print("num_of_swaps: {}\n", w.swaps);
+            fmt::print("best_state: {::d}\n", best_state);
+            fmt::print("{::.6f}\n", std::vector<double> (w.beta_values, w.beta_values + w.params.Nt));
+            fmt::print("Total time: {:.6f}\n", totalTime);
         }
         MPI_Barrier(MPI_COMM_WORLD);
     };

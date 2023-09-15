@@ -148,7 +148,7 @@ namespace pticm {
             max_emax = std::max(emax, max_emax);
             min_emin = std::min(emin_values[i], min_emin);
         }
-    };
+    }
 
 
     // calculate the partition function estimate from density of states, temperature, energy minimum and energy step
@@ -414,9 +414,9 @@ namespace pticm {
         w.params.Nt = i;
         std::cout << i << " replica temperatures selected" << std::endl;
         }
-    };
+    }
     
-};// namespace pticm
+} // namespace pticm
 #ifndef WHOLE
 int main(int argc, char** argv) {
     pticm::PTWorker w;

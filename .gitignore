@@ -1,1 +1,5 @@
 build/*
+core
+venv/
+*.pyc
+experiments/

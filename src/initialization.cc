@@ -102,7 +102,7 @@ namespace pticm {
             w.beta_values = new double[par.Nt * 2];
             // if preprocessing enabled, use multihistogram method for a CAE scheme
             if (w.params.preprocess) {
-                get_beta(w, 2, 1e-1, 0.45, 10000);
+                get_beta(w, 2, 1e-1, 0.4, 2000);
             } else {
                 // otherwise linearly space the temps between low and high
                 beta_linspace(w.beta_values, w.params.T0, w.params.T1, w.params.Nt, w.params.inverse);
