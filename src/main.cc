@@ -3,15 +3,23 @@
 #include <cmath>
 #include <boost/format.hpp>
 #include <boost/program_options.hpp>
+#include <filesystem>
+#include <fstream>
 #include "solver.hh"
 #include "mpi_utils.hh"
+#include "definitions.hh"
+#include "utils.hh"
 
 namespace po = boost::program_options;
 // parse command line (self explanatory)
-int parse_args (int argc, 
-                 char** argv,
-                 std::string& problem_path,
-                 pticm::Parameters& params) {
+int parse_args(int argc,
+               char **argv,
+               std::string &problem_path,
+               std::string &problem_folder,
+               std::string &csv_path,
+               size_t& restarts,
+               pticm::Parameters & params)
+{
     params.inverse = false;
     params.log_data = false;
     params.icm = false;
@@ -28,17 +36,20 @@ int parse_args (int argc,
      desc.add_options()
         ("help,h", "produce help message")
         ("seed,s", po::value<uint64_t>()->default_value(time(NULL)), "random seed")
-        ("problem,p", po::value<std::string>(), "path to problem file (GSET)")
+        ("problem,p", po::value<std::string>()->default_value(""), "path to problem file (GSET)")
         ("burn_in,b", po::value<uint64_t>()->default_value(500), "number of MCMC burn-in steps before logging")
         ("sweeps,s", po::value<uint64_t>()->default_value(1), "replica sweeps per parallel tempering step")
         ("replicas,r", po::value<uint64_t>()->default_value(20), "number of independent temperatures to simulate")
         ("pts", po::value<uint64_t>()->default_value(2000), "number of parallel tempering steps (one sweep per replica, one replica exchange attempt, one ICM)")
+        ("restarts", po::value<uint64_t>()->default_value(20), "number of problem restarts")
         ("temp0,T0", po::value<double>()->default_value(0.6), "Starting temperature")
         ("temp1,T1", po::value<double>()->default_value(2.8), "Ending temperature")
         ("inverse,i", po::bool_switch(&params.inverse), "Interpret temperatures as inverted")
         ("preprocess", po::bool_switch(&params.preprocess), "Enable CAE temperature selection")
         ("log", po::bool_switch(&params.log_data), "Log data and calculate observables (u and c)")
         ("icm", po::bool_switch(&params.icm), "Enable isoenergetic cluster moves (ICM)")
+        ("problem_folder", po::value<std::string>()->default_value(""), "path to folder of problem files (GSET)")
+        ("csv", po::value<std::string>()->default_value("bench_output.csv"), "desired output file path (CSV formatted)")
         ("verbose", po::value<uint32_t>()->default_value(0), "Verbosity level (0 for minimal messages, 1 for periodic updates, 2 for debugging)")
     ;
 
@@ -49,12 +60,15 @@ int parse_args (int argc,
         return -1;
     }
     problem_path = opts["problem"].as<std::string>();
+    problem_folder = opts["problem_folder"].as<std::string>();
+    csv_path = opts["csv"].as<std::string>();
     params.seed = opts["seed"].as<uint64_t>();
     params.Nt = opts["replicas"].as<uint64_t>();
     params.sweeps = opts["sweeps"].as<uint64_t>();
     params.pts = opts["pts"].as<uint64_t>();
     params.burn_in = opts["burn_in"].as<uint64_t>();
     params.T0 = opts["temp0"].as<double>();
+    restarts = opts["restarts"].as<uint64_t>();
     params.T1 = opts["temp1"].as<double>();
     params.verbosity = opts["verbose"].as<uint32_t>();
     params.icm = opts["icm"].as<bool>();
@@ -123,9 +137,7 @@ int parse_args (int argc,
 #endif
     
     return 0;
-
 }
-
 
 int main(int argc, char** argv) {
     MPI_Init(NULL, NULL);
@@ -136,29 +148,104 @@ int main(int argc, char** argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &w.wid);
     // inital values
     std::string problem_path;
+    std::string problem_folder;
+    std::string csv;
+    size_t restarts;
     uint64_t help_disp = 1;
+    uint64_t folder_solve = 0;
     // have worker 0 parse the arguments
-
 
     if (w.wid == 0) {
         help_disp = parse_args(argc,
                                argv,
                                problem_path,
+                               problem_folder,
+                               csv,
+                               restarts,
                                w.params);
+        folder_solve = (problem_folder == "");
     }
     // broadcast the parsing result, exit if help message displayed
-    MPI_Bcast(&help_disp, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&restarts, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&help_disp, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&folder_solve, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
     MPI_Barrier(MPI_COMM_WORLD);
     if (help_disp) {
         MPI_Finalize();
         return 0;
     }
+
     MPI_Datatype parameter_type;
     pticm::create_datatype(parameter_type);
     // send the relavent parameters to each worker
-    MPI_Bcast((void*)&w.params, 1, parameter_type, 0, MPI_COMM_WORLD);
-    // solve the problem
-    pticm::solve(w, problem_path);
+    double best_ene;
+    pticm::StateVector best_state;
+    size_t num_flips;
+    MPI_Bcast((void *)&w.params, 1, parameter_type, 0, MPI_COMM_WORLD);
+    if (folder_solve) {
+        // solve the problem
+        pticm::solve(w, problem_path, best_ene, num_flips, best_state);
+        pticm::free_worker(w);
+    } else {
+        std::fstream csvfile;
+        if (w.wid == 0) {
+            csvfile.open(csv, std::fstream::out);
+            csvfile << "problem,iter,pts,replicas,tlist,pswap,icm,preprocess,burn_in,inverse,sweeps,ene,state,cut,flips\n";
+        }
+        std::filesystem::directory_iterator dir_iter;
+        std::vector<std::string> problem_list;
+        size_t num_problems = 0;
+        size_t original_seed = w.params.seed;
+        if (w.wid == 0)
+        {
+            dir_iter = std::filesystem::directory_iterator(problem_folder);
+            for (auto& i: dir_iter) {
+                std::string problem_instance = i.path();
+                problem_list.push_back(problem_instance);
+                num_problems++;
+            }
+        }
+        MPI_Bcast(&num_problems, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+        std::string problem_instance;
+        for (size_t p_index = 0; p_index < num_problems; p_index++)
+        {
+            w.params.seed = original_seed;
+            if (w.wid == 0)
+            {
+                problem_instance = problem_list[p_index];
+            }
+            pticm::Parameters &par = w.params;
+            for (size_t i = 0; i < restarts; i++) {
+
+                pticm::solve(w, problem_instance, best_ene, num_flips, best_state);
+                if (w.wid == 0) {
+                    std::vector<double> beta_values(w.beta_values, w.beta_values + 2*par.Nt);
+                    std::vector<double> pswap = (w.swap_successes / w.swap_attempts);
+                    csvfile << problem_instance << ","
+                            << i << ","
+                            << par.pts << ","
+                            << par.Nt << ","
+                            << beta_values << ","
+                            << pswap << ","
+                            << par.icm << ","
+                            << par.preprocess << ","
+                            << par.burn_in << ","
+                            << par.inverse << ","
+                            << par.sweeps << ","
+                            << best_ene << ","
+                            << "\"" << best_state << "\"" << ","
+                            << w.p.maxcut(best_state) << ","
+                            << num_flips << "\n";
+                }
+                w.params.seed++;
+                MPI_Bcast(&w.params.seed, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+                pticm::free_worker(w);
+            }
+        }
+        if (w.wid == 0)
+            csvfile.close();
+        
+    }
     MPI_Finalize();
     //__IGNORE BELOW__ Keeping for future reference, from an older version of the code that calculated thermodynamic observables
     // // local data structures

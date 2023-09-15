@@ -71,7 +71,7 @@ namespace pticm {
 
 
     // TODO: Make this a configurable value. Determines number of parallel tempering steps before starting to log values for averaging
-    #define BURN_IN 500
+    #define BURN_IN 5000
     // Conduct a preliminary PT run to construct energy histograms
     void gather_samples(PTWorker& w, std::vector<std::vector<unsigned>>& histograms,
                                      std::vector<double>& beta_values, 

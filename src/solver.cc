@@ -9,7 +9,7 @@
 #include <boost/timer/progress_display.hpp>
 namespace bt = boost::timer; 
 namespace pticm {
-    void solve(PTWorker& w, std::string& problem_path) {
+    void solve(PTWorker& w, std::string& problem_path, double& best_ene, size_t& flips, StateVector& best_state) {
         MPI_Datatype parameter_type;
         create_datatype(parameter_type);
         // send the relavent parameters to each worker
@@ -23,6 +23,7 @@ namespace pticm {
             w.last_r += (Nt * 2) - regular; 
         }
         w.loc_r = w.wid != w.numw - 1 ? w.worker_r : w.last_r;
+        MPI_Barrier(MPI_COMM_WORLD);
         // instantiate the problem
         read_problem(w, problem_path);
 
@@ -68,8 +69,10 @@ namespace pticm {
                     w.energy_values_local[replica_ind++] = r.get_energy();
                 }
             }
+            
             // send all energy values to manager
             gather_energy_values(w);
+            
             // perform Nt - 1 replica exchange proposals for each chain
             for (size_t m = 0; m < w.params.Nt - 1; m++) {
                 if (w.wid == 0){
@@ -80,14 +83,19 @@ namespace pticm {
                     check_for_replica_exchange(w);
                 }
             }
+
+            
             // if ICM is enabled
             if (w.params.icm) {
                 // perform ICM on all relevant replicas
 
-                for (size_t icm_target = w.params.Nt-1; icm_target >= w.params.Nt - w.Nc; icm_target--) {
-                    if (w.wid == 0) {
+                for (int icm_target = w.params.Nt-1; icm_target >= static_cast<int>(w.params.Nt - w.Nc); icm_target--) {
+                    if (w.wid == 0)
+                    {
                         icm(w, icm_target);
-                    } else {
+                    }
+                    else
+                    {
                         check_icm(w);
                     }
                 }
@@ -119,11 +127,10 @@ namespace pticm {
         }
         write_update(w, "Exiting MCMC loop", 1);
         MPI_Barrier(MPI_COMM_WORLD);
-        double best_ene = __DBL_MAX__;
-        StateVector best_state;
+        best_ene = __DBL_MAX__;
         gather_best_energy_values(w, best_ene, best_state);
         // std::vector<double> final_energies (w.energy_values_local, w.energy_values_local + w.loc_r);
-        uint64_t flips = get_flips(w);
+        flips = get_flips(w);
         if (w.wid == 0) {
             std::vector<double> swap_rates = w.swap_successes / w.swap_attempts;
             std::cout << swap_rates << std::endl;
@@ -136,7 +143,5 @@ namespace pticm {
             std::cout << std::vector<double> (w.beta_values, w.beta_values + w.params.Nt) << "\n";
         }
         MPI_Barrier(MPI_COMM_WORLD);
-        free_worker(w);
-
     };
 } // namespace pticm

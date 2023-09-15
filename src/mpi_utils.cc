@@ -229,6 +229,5 @@ namespace pticm {
         }
         delete [] w.energy_values_local;
         delete [] w.beta_values_local;
-
     };
 } // namespace pticm

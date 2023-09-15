@@ -3,62 +3,78 @@
 #include <list>
 #include <vector>
 #include <iostream>
+#include <fstream>
 #include "mpi.h"
-namespace pticm {
-    template <typename T>
-    std::ostream& operator<<(std::ostream& out, std::vector<T> vec){
-        out << "[";
-        if (vec.size() > 0) {
-            for (uint64_t i = 0; i < vec.size() - 1; i++) {
-                out << vec.at(i) << ", ";
-            }
-            out << vec.back();
+template <typename T>
+std::ostream& operator<<(std::ostream& out, std::vector<T> vec){
+    out << "[";
+    if (vec.size() > 0) {
+        for (uint64_t i = 0; i < vec.size() - 1; i++) {
+            out << vec.at(i) << ", ";
+        }
+        out << vec.back();
 
+    }
+    out << "]";
+    return out;
+};
+template <typename T>
+std::ostream& operator<<(std::fstream& out, std::vector<T> vec){
+    out << "\"[";
+    if (vec.size() > 0) {
+        for (uint64_t i = 0; i < vec.size() - 1; i++) {
+            out << vec.at(i) << ";";
         }
-        out << "]";
-        return out;
-    };
-    template <typename T>
-    std::ostream& operator<<(std::ostream& out, std::list<T> vec){
-            out << "[";
-        size_t size = vec.size();
-        if (size > 0) {
-            size_t ind = 0;
-            for (T& e: vec) {
-                out << e;
-                if (++ind < size) {
-                    out << ", ";
-                }
+        out << vec.back();
+
+    }
+    out << "]\"";
+    return out;
+};
+template <typename T>
+std::ostream& operator<<(std::ostream& out, std::list<T> vec){
+        out << "[";
+    size_t size = vec.size();
+    if (size > 0) {
+        size_t ind = 0;
+        for (T& e: vec) {
+            out << e;
+            if (++ind < size) {
+                out << ", ";
             }
         }
-        out << "]";
-        return out;
-    };
-    template <typename T>
-    std::vector<T> operator/(std::vector<T>& left, std::vector<T>& right){
-        assert(left.size() == right.size());
-        std::vector<T> result = std::vector<T>(left.size());
-        for (size_t i = 0; i < left.size(); i++) {
-            result[i] = left[i] / right[i];
-        }
-        return result;
-    };
-    template <typename S, typename T>
-    std::vector<S> operator/(std::vector<T>& left, std::vector<T>& right){
-        assert(left.size() == right.size());
-        std::vector<T> result = std::vector<T>(left.size());
-        for (size_t i = 0; i < left.size(); i++) {
-            result[i] = static_cast<S>(left[i]) / static_cast<S>(right[i]);
-        }
-        return result;
-    };
+    }
+    out << "]";
+    return out;
+};
+template <typename T>
+std::vector<T> operator/(std::vector<T>& left, std::vector<T>& right){
+    assert(left.size() == right.size());
+    std::vector<T> result = std::vector<T>(left.size());
+    for (size_t i = 0; i < left.size(); i++) {
+        result[i] = left[i] / right[i];
+    }
+    return result;
+};
+template <typename S, typename T>
+std::vector<S> operator/(std::vector<T>& left, std::vector<T>& right){
+    assert(left.size() == right.size());
+    std::vector<T> result = std::vector<T>(left.size());
+    for (size_t i = 0; i < left.size(); i++) {
+        result[i] = static_cast<S>(left[i]) / static_cast<S>(right[i]);
+    }
+    return result;
+};
+std::vector<double> operator/(std::vector<uint32_t>& left, std::vector<uint32_t>& right);
+namespace pticm {
     struct Edge {
         uint64_t dest;
         double weight;
     };
-    typedef std::vector<bool> StateVector; // for convenience, use boolean vectors
-    std::ostream& operator<<(std::ostream& out, StateVector vec);
     std::vector<double> operator/(std::vector<uint32_t>& left, std::vector<uint32_t>& right);
+
+    typedef std::vector<bool> StateVector; // for convenience, use boolean vectors
+    std::ostream& operator<<(std::ostream& out, StateVector& vec);
     typedef std::vector<std::vector<double>> Matrix;
     typedef std::vector<std::list<Edge>> SparseMatrix;
     //the following are UBUNTU/LINUX and MacOS ONLY terminal color codes.
