@@ -12,6 +12,7 @@ namespace pticm {
             std::vector<double> dE; // deltaE pointer, will indicate location in the problem dE bank
             uint64_t offset; // 
             double best_ene;
+            size_t best_ene_sweep; // store the sweep when the best ene was found
             StateVector best_state;
             // Compare the boltzmann exponent with a log uniform random number
             bool mh_consider (Problem& p, uint32_t index);
@@ -42,6 +43,7 @@ namespace pticm {
             inline void set_beta(const double new_beta) {beta = new_beta;}
             inline std::vector<double>& get_dE() {return dE;}
             inline const StateVector& get_best_state() const { return best_state; }
+            inline size_t get_best_sweep() const { return best_ene_sweep; }
             inline double get_best_ene() const { return best_ene; }
             inline const std::list<double>& get_ene_log() const { return ene_log; }
 
@@ -51,6 +53,7 @@ namespace pticm {
                 dE = other.dE;
                 energy = other.energy;
                 best_ene = other.best_ene;
+                best_ene_sweep = other.best_ene_sweep;
                 ene_log = other.ene_log;
                 burn_in = other.burn_in;
                 log_energy = other.log_energy;

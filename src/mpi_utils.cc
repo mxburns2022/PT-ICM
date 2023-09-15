@@ -100,15 +100,18 @@ namespace pticm {
 
     };
     // get the best recorded energy value/state across all replicas
-    void gather_best_energy_values(PTWorker& w, double& best_ene_global, StateVector& best_state) {
+    void gather_best_energy_values(PTWorker& w, double& best_ene_global, size_t& best_sweep, StateVector& best_state) {
         double best_ene_local = __DBL_MAX__;
+        size_t best_local_sweep = 0;
         StateVector state;
+
         size_t ind = 0;
         for (Replica& r: w.replicas) {
             double r_ene = r.get_best_ene();
             if (r_ene < best_ene_local) {
                 best_ene_local = r_ene;
                 state = r.get_best_state();
+                best_local_sweep = r.get_best_sweep();
             }
             ind ++;
         }
@@ -116,11 +119,21 @@ namespace pticm {
         if (w.wid == 0) {
             best_ene_global = best_ene_local;
             best_state = state;
+            best_sweep = best_local_sweep;
             double ene_temp;
-            for (uint64_t worker = 1; worker < w.numw; worker++) {
+            size_t sweep_temp;
+            for (uint64_t worker = 1; worker < w.numw; worker++)
+            {
                 MPI_Recv(&ene_temp,
                         1, 
                         MPI_DOUBLE, 
+                        worker, 
+                        0, 
+                        MPI_COMM_WORLD, 
+                        &w.stat);
+                MPI_Recv(&sweep_temp,
+                        1, 
+                        MPI_UNSIGNED_LONG, 
                         worker, 
                         0, 
                         MPI_COMM_WORLD, 
@@ -134,6 +147,7 @@ namespace pticm {
                         &w.stat);
                 if (ene_temp < best_ene_global) {
                     best_state = StateVector(state_temp.get(), state_temp.get() + w.p.vcount());
+                    best_sweep = sweep_temp;
                     best_ene_global = ene_temp;
                 }
             }
@@ -142,6 +156,7 @@ namespace pticm {
                 state_temp[i] = state[i];
             }
             MPI_Send(&best_ene_local, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+            MPI_Send(&best_local_sweep, 1, MPI_UNSIGNED_LONG, 0, 0, MPI_COMM_WORLD);
             MPI_Send(state_temp.get(), w.p.vcount(), MPI_CXX_BOOL, 0, 0, MPI_COMM_WORLD);
         }
 

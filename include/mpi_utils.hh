@@ -13,7 +13,8 @@ namespace pticm {
                         double beta, 
                         uint8_t chain);
     void gather_best_energy_values(PTWorker& w, 
-                                double& best_ene_global, 
+                                double& best_ene_global,
+                                size_t& best_sweep,  
                                 StateVector& best_state);
 } //namespace pticm
 #endif

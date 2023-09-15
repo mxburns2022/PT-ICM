@@ -23,6 +23,7 @@ namespace pticm {
         if (energy < best_ene) {
             best_ene = energy;
             best_state = state;
+            best_ene_sweep = sweep_counter;
         }
         flips += 1;
     }
@@ -51,6 +52,7 @@ namespace pticm {
                                       burn_in(_burn_in),
                                       sweep_counter(0) {
         best_ene = DBL_MAX;
+        best_ene_sweep = 0;
         best_state = init_state;
     }
 } // namespace pticm

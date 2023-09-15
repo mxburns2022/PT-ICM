@@ -132,7 +132,8 @@ namespace pticm {
         write_update(w, "Exiting MCMC loop", 1);
         MPI_Barrier(MPI_COMM_WORLD);
         best_ene = __DBL_MAX__;
-        gather_best_energy_values(w, best_ene, best_state);
+        size_t best_sweep;
+        gather_best_energy_values(w, best_ene, best_sweep, best_state);
         // std::vector<double> final_energies (w.energy_values_local, w.energy_values_local + w.loc_r);
         flips = get_flips(w);
         double elapsedTime = MPI_Wtime() - tbeg;
@@ -151,6 +152,7 @@ namespace pticm {
             fmt::print("swap_attempts: {}\n", w.swap_attempts);
             fmt::print("swap_successes: {}\n", w.swap_successes);
             fmt::print("best_state_energy: {}\n", w.p.energy(best_state));
+            fmt::print("best_state_sweep: {}\n", best_sweep);
             fmt::print("best_energy: {} \n", best_ene);
             fmt::print("best_maxcut: {}\n", w.p.maxcut(best_state));
             fmt::print("num_of_flips: {}\n", flips);
