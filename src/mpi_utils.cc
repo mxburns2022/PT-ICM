@@ -145,7 +145,7 @@ namespace pticm {
                         0, 
                         MPI_COMM_WORLD, 
                         &w.stat);
-                if (ene_temp < best_ene_global) {
+                if (ene_temp < best_ene_global || (std::abs(ene_temp - best_ene_global) < 1e-10 && sweep_temp <  best_sweep)) {
                     best_state = StateVector(state_temp.get(), state_temp.get() + w.p.vcount());
                     best_sweep = sweep_temp;
                     best_ene_global = ene_temp;
