@@ -1,12 +1,14 @@
 #include "pt_icm.hh"
 #include "mpi_utils.hh"
 #include "utils.hh"
+#include <memory>
 namespace pticm {
     // Read the problem from the provided file path
     void read_problem(PTWorker& w, std::string problem_path) {
         size_t M, N;
         bool is_sparse;
         std::unique_ptr<double[]> weights; // arrays to store J matrix info
+        std::unique_ptr<double[]> linear; // arrays to store linear terms
         std::unique_ptr<int[]> src;
         std::unique_ptr<int[]> dst;
         if (w.wid == 0) {
@@ -25,6 +27,7 @@ namespace pticm {
         MPI_Bcast(&is_sparse, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
         MPI_Bcast(&N, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
         MPI_Bcast(&M, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+        linear = std::make_unique<double[]>(N);
         // serialize the problem matrix
         if (is_sparse) {
             // if sparse, store in COO format TODO: convert to CSR to save space
@@ -32,25 +35,27 @@ namespace pticm {
             src = std::make_unique<int[]>(M);
             dst = std::make_unique<int[]>(M);
             if (w.wid == 0) {
-                w.p.serialize(weights.get(), src.get(), dst.get());
+                w.p.serialize(weights.get(),  src.get(), dst.get(), linear.get());
             }
             MPI_Bcast(weights.get(), M, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+            MPI_Bcast(linear.get(), N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
             MPI_Bcast(src.get(), M, MPI_INT, 0, MPI_COMM_WORLD);
             MPI_Bcast(dst.get(), M, MPI_INT, 0, MPI_COMM_WORLD);
         } else {
             // dense matrix, broadcast NxN matrix of weights
             weights = std::make_unique<double[]>(N * N);
             if (w.wid == 0) {
-                w.p.serialize(weights.get(), NULL, NULL);
+                w.p.serialize(weights.get(), NULL, NULL, linear.get());
             }
             MPI_Bcast(weights.get(), N*N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+            MPI_Bcast(linear.get(), N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         }
         // for all non-manager workers, construct the problem from the serialized info
         if (w.wid != 0){
             if (is_sparse) {
-                w.p = Problem(weights.get(), src.get(), dst.get(), w.params.seed + w.wid, w.params.burn_in, N, M);
+                w.p = Problem(weights.get(), src.get(), dst.get(),linear.get(), w.params.seed + w.wid, w.params.burn_in, N, M);
             } else {
-                w.p = Problem(weights.get(), w.params.seed + w.wid, w.params.burn_in, N);
+                w.p = Problem(weights.get(),linear.get(), w.params.seed + w.wid, w.params.burn_in, N);
             }
         }
     };

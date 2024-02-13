@@ -3,7 +3,7 @@
 #include "utils.hh"
 namespace pticm {
     // store problem matrix for MPI transmission
-    void Problem::serialize(double* weights, int* src, int* dest) {
+    void Problem::serialize(double* weights, int* src, int* dest, double* linear) {
         if (sparse) {
             uint64_t ind = 0;
             uint64_t srcnode = 0;
@@ -27,13 +27,17 @@ namespace pticm {
                 curr_val += N;
             }
         }
+        std::memcpy(linear, linear_terms.data(), N * sizeof(double));
     }
     // calculate enegy and energy change vector for a given starting state
     double Problem::calculate_dE (std::vector<double>& dE, const StateVector& s) const {
         double ene = 0.0;
         double ene_term;
         assert(sign(false) == -1);
-        assert(sign(true) == 1); 
+        assert(sign(true) == 1);
+        for (uint64_t i = 0; i < N; i++) {
+          dE[i] = -linear_terms[i] * s[i];
+        }
         for (uint64_t i = 0; i < N; i++) {
             int ival = sign(s[i]);
             if (sparse) {
@@ -175,11 +179,17 @@ namespace pticm {
         infile.open(path, std::fstream::in);
 
         assert(infile.is_open());
-        infile >> N >> M; // Read nodes and edges
+        uint64_t num_linear = 0;
+        if (path.find(".ising") != std::string::npos) {
+            infile >> N >> M >> num_linear;
+        } else {
+            infile >> N >> M; // Read nodes and edges
+        }
+        linear_terms = std::vector<double>(N, 0.0);
         uint64_t u, v;
         double w;
         // Sparse if less than 10% of possible edges exist
-        sparse = (static_cast<double>(M) / (N*(N-1) / 2)) < 0.1;
+        sparse = (static_cast<double>(M) / (N * (N-1) / 2)) < 0.1;
         if (sparse) {
             formulation_sparse = SparseMatrix(N);
         } else {
@@ -189,18 +199,22 @@ namespace pticm {
             }
         }
         
-        int offset = (path.find(".gset") == std::string::npos) ? -1 : 0;
+        int offset = (path.find(".gset") == std::string::npos && path.find(".ising") == std::string::npos) ? -1 : 0;
         
         std::string line;
         std::istringstream linestream;
         double sum = 0;
         double sqsum = 0;
+        uint64_t numlinread = 0;
         while(std::getline(infile, line)) {
             if (line.size() <= 1) {
                 continue;
             }
-
             linestream = std::istringstream(line);
+            if (numlinread < num_linear) {
+              linestream >> u >> w;
+              linear_terms[u] = w;
+            }
             linestream >> u >> v;
             u += offset;
             v += offset;

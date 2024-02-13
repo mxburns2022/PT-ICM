@@ -9,6 +9,7 @@ namespace pticm {
             bool sparse; // if the problem is sparse (in which case the matrix is an edgelist)
             Matrix formulation; // use whichever one is determined at runtime
             SparseMatrix formulation_sparse;
+            std::vector<double> linear_terms;
             uint64_t N; // number of nodes
             uint64_t M; // number of edges
             uint64_t seed;
@@ -19,7 +20,8 @@ namespace pticm {
         public:
             Problem(std::string path, uint64_t seed = 0, uint64_t _burn_in = UINT64_MAX);
 
-            Problem(double* _formulation, 
+            Problem(double *_formulation,
+                    double *_linear,
                     uint64_t _seed, 
                     uint64_t _burn_in, 
                     uint64_t _N): N(_N),
@@ -29,6 +31,7 @@ namespace pticm {
                             burn_in(_burn_in) {
                         sparse = false;
                         formulation = std::vector<std::vector<double>>(_N);
+                        linear_terms = std::vector<double>(_linear, _linear + N);
                         for (uint64_t i = 0; i < _N; i++) {
                             double* currptr = _formulation + i * N;
                             formulation[i] = std::vector<double> (currptr, currptr + N);
@@ -37,6 +40,7 @@ namespace pticm {
             Problem(double* weights, 
                     int* src,
                     int* dest,
+                    double *_linear,
                     uint64_t _seed, 
                     uint64_t _burn_in, 
                     uint64_t _N,
@@ -48,6 +52,7 @@ namespace pticm {
                                 burn_in(_burn_in) {
                 sparse = true;
                 formulation_sparse = SparseMatrix(N);
+                linear_terms = std::vector<double>(_linear, _linear + N);
                 for (uint64_t i = 0; i < M; i++) {
                     Edge e1 = {static_cast<uint64_t>(dest[i]), weights[i]};
                     formulation_sparse[src[i]].push_back(e1);
@@ -73,7 +78,7 @@ namespace pticm {
             std::mt19937_64& get_rng() {return rng_engine;};
             // Incremental Isakov step
             void incremental_dE(std::vector<double>& dE, const StateVector& s, uint32_t index) const;
-            void serialize(double* weights, int* src, int* dest);
+            void serialize(double* weights,  int* src, int* dest, double* linear);
             Problem& operator=(const Problem& other) {
                 sparse = other.sparse;
                 formulation = other.formulation;
@@ -86,6 +91,7 @@ namespace pticm {
                 sparse = other.sparse;
                 unif = other.unif;
                 burn_in = other.burn_in;
+                linear_terms = other.linear_terms;
                 return *this;
             }
 
