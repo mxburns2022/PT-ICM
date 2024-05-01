@@ -59,41 +59,43 @@ namespace pticm {
                 }
             }
         }
-    // #ifndef NDEBUG
-    //     StateVector state = s;
+    #ifndef NDEBUG
+        StateVector state = s;
+        // Check that each entry is correct
+        for (uint64_t i = 0; i < N; i++) {
+            state[i] = !state[i];
+            double ene_new = energy(state);
+            double actual_de = ene_new - ene;
+            if(std::abs(actual_de - dE[i]) > 1e-10) {
+                printf("%lu: %f %f\n", i, actual_de, dE[i]);
+                assert(false);
+            }
+            state[i] = !state[i];
+        }
 
-    //     for (uint64_t i = 0; i < N; i++) {
-    //         state[i] = !state[i];
-    //         double ene_new = energy(state);
-    //         double actual_de = ene_new - ene;
-    //         if(std::abs(actual_de - dE[i]) > 1e-10) {
-    //             printf("%lu: %f %f\n", i, actual_de, dE[i]);
-    //             assert(false);
-    //         }
-    //         state[i] = !state[i];
-    //     } 
-    //     std::vector<double> temp = dE;
-    //     for (uint64_t i = 0; i < N; i++) {
-    //         double temp_ene = ene + dE[i];
-    //         incremental_dE(dE, state, i);
-    //         state[i] = !state[i];
-    //         for (uint64_t j = 0; j < N; j++) {
-    //             if (j == i) {
-    //                 continue;
-    //             }
-    //             state[j] = !state[j];
-    //             double ene_new = energy(state);
-    //             double actual_de = ene_new - temp_ene;
-    //             if(std::abs(actual_de - dE[j]) > 1e-10) {
-    //                 printf("%lu: %f %f\n", j, actual_de, dE[j]);
-    //                 assert(false);
-    //             }
-    //             state[j] = !state[j];
-    //         };
-    //         dE = temp;
-    //         state[i] = !state[i];
-    //     } 
-    // #endif
+        // Check that the incremental update is correct
+        std::vector<double> temp = dE;
+        for (uint64_t i = 0; i < N; i++) {
+            double temp_ene = ene + dE[i];
+            incremental_dE(dE, state, i);
+            state[i] = !state[i];
+            for (uint64_t j = 0; j < N; j++) {
+                if (j == i) {
+                    continue;
+                }
+                state[j] = !state[j];
+                double ene_new = energy(state);
+                double actual_de = ene_new - temp_ene;
+                if(std::abs(actual_de - dE[j]) > 1e-10) {
+                    printf("%lu: %f %f\n", j, actual_de, dE[j]);
+                    assert(false);
+                }
+                state[j] = !state[j];
+            };
+            dE = temp;
+            state[i] = !state[i];
+        }
+    #endif
         return ene;
     }
     // calculate energy from a given state
