@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.11.0)
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_COMPILER "/usr/bin/mpic++")
+find_package(MPI REQUIRED)
+
+set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
 if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
   if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
