@@ -352,6 +352,17 @@ namespace pticm {
                                   logdos,
                                   partition_functions, 
                                   estep, n, total_bins, max_emax);
+            std::string vals = "Sampled Beta:\n\t[";
+            for (size_t i = 0; i < hist_betas.size()-1; i++) {
+                vals += std::to_string(hist_betas[i]) + ", ";
+            }
+            vals += std::to_string(hist_betas.back()) + "]";
+            vals += "\nPartition functions:\n\t[";
+            for (size_t i = 0; i < partition_functions.size()-1; i++) {
+                vals += std::to_string(partition_functions[i]) + ", ";
+            }
+            vals += std::to_string(partition_functions.back()) + "]";
+            write_update(w, vals, 1);
             // set starting beta value and get partition function
             w.beta_values[0] = beta_start;
             double partition_last =  partition_func(logdos, 

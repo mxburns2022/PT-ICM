@@ -35,8 +35,10 @@ namespace pticm {
         double ene_term;
         assert(sign(false) == -1);
         assert(sign(true) == 1);
+        
         for (uint64_t i = 0; i < N; i++) {
-          dE[i] = -linear_terms[i] * s[i];
+          dE[i] = -2*linear_terms[i] * sign(s[i]);
+          ene += linear_terms[i] * sign(s[i]);
         }
         for (uint64_t i = 0; i < N; i++) {
             int ival = sign(s[i]);
@@ -122,6 +124,7 @@ namespace pticm {
         double ene = 0.0;
         for (uint64_t i = 0; i < N; i++) {
             int8_t ival = sign(s[i]);
+            ene += ival * linear_terms[i];
             if (sparse) {
                 const std::list<Edge>& iedges = formulation_sparse.at(i);
                 for (auto e: iedges) {
@@ -216,6 +219,8 @@ namespace pticm {
             if (numlinread < num_linear) {
               linestream >> u >> w;
               linear_terms[u] = w;
+              numlinread+=1;
+              continue;
             }
             linestream >> u >> v;
             u += offset;

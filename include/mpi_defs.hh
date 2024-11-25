@@ -14,11 +14,13 @@ namespace pticm {
         uint64_t seed;
         uint64_t Nt;
         uint64_t pts;
+        uint64_t pre_samples;
         uint64_t burn_in;
         uint64_t sweeps;
         double T0;
         double T1;
         double cutoff;
+        double pre_step;
         bool inverse;
         bool preprocess;
         bool log_data;

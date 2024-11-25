@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <time.h>
 #include <sstream>
 #include <cmath>
@@ -36,6 +37,8 @@ int parse_args(int argc,
     program.add_argument("--sweeps").help("replica sweeps per parallel tempering step").default_value((uint64_t)1).scan<'u', uint64_t>();
     program.add_argument("-r", "--replicas").help("number of independent temperatures to simulate").default_value((uint64_t)20).scan<'u', uint64_t>();
     program.add_argument("--pts").help("number of parallel tempering steps (one sweep per replica, one replica exchange attempt, one ICM)").default_value((uint64_t)2000).scan<'u', uint64_t>();
+    program.add_argument("--preprocess-samples").help("number of samples for the preprocessing step").default_value((uint64_t)2000).scan<'u', uint64_t>();
+    program.add_argument("--preprocess-stepsize").help("Step size for the iterative beta computation in the preprocessing step").default_value((double)0.1).scan<'g', double>();
     program.add_argument("-T0", "--temp0").help("Starting temperature").default_value((double)0.6).scan<'f', double>();
     program.add_argument("-T1", "--temp1").help("Ending temperature").default_value((double)2.8).scan<'f', double>();
     program.add_argument("-i", "--inverse").help("Interpret temperatures as inverted").default_value(false).implicit_value(true);
@@ -67,6 +70,8 @@ int parse_args(int argc,
     params.T0 = program.get<double>("--temp0");
     params.T1 = program.get<double>("--temp1");
     params.icm = program.get<bool>("--icm");
+    params.pre_samples = program.get<uint64_t>("--preprocess-samples");
+    params.pre_step = program.get<double>("--preprocess-stepsize");
     params.preprocess = program.get<bool>("--preprocess");
     params.log_data = program.get<bool>("--log");
     params.inverse = program.get<bool>("--inverse");
