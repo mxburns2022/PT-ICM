@@ -1,52 +1,58 @@
 #include "pt_icm.hh"
 #include <float.h>
+namespace pticm {
+    // perform a sweep
+    void Replica::sweep (Problem& p) {
+        for (uint64_t i = 0; i < p.vcount(); i++) {
+            if (mh_consider(p, i)) {
+                mh_accept(p, i);
+            }
+            if (log_energy && sweep_counter > burn_in) {
+                ene_log.push_back(energy);
+            }
 
-void Replica::sweep (Problem& p) {
-    for (size_t i = 0; i < p.vcount(); i++) {
-        if (mh_consider(p, i)) {
-            mh_accept(p, i);
         }
+        sweep_counter ++;
     }
-};
-void  Replica::mh_accept (Problem& p, uint32_t index) {
-    energy += dE[index];
-    p.incremental_dE(dE, state, index);
-    state[index] = !state[index];
-    if (energy < best_ene) {
-        best_ene = energy;
-        best_state = state;
+    // accept the state change: increments energy, updates dE, flips spin
+    void  Replica::mh_accept (Problem& p, uint32_t index) {
+        energy += dE[index];
+        p.incremental_dE(dE, state, index);// NOTE: This must occur before flipping the spin
+        state[index] = !state[index];
+        // if best seen so far, log
+        if (energy < best_ene) {
+            best_ene = energy;
+            best_state = state;
+            best_ene_sweep = sweep_counter;
+        }
+        flips += 1;
     }
-#ifndef NDEBUG
-    if (std::abs(energy - p.energy(state)) > 1e-10) {
-        std::cout << "Incorrect Update " << energy << " " <<  p.energy(state) << std::endl;
-        assert(false);
+    // consider a M-H proposal
+    bool Replica::mh_consider (Problem& p, uint32_t index) {
+        if (dE[index] <= 0) {
+            return true;
+        }
+        double boltzmann = std::exp(-beta * dE[index]);
+        double rng_comp = p.rand_double();
+        return rng_comp < boltzmann; 
     }
-#endif
-    flips += 1;
-}
-bool Replica::mh_consider (Problem& p, uint32_t index) {
-    if (dE[index] <= 0) {
-        return true;
+    // Replica CTOR
+    Replica::Replica(Problem& p, 
+                    double _beta, 
+                    const StateVector& init_state, 
+                    const std::vector<double>& init_dE,
+                    double _energy,
+                    bool _log_ene,
+                    size_t _burn_in): energy(_energy),
+                                      beta(_beta), 
+                                      flips(0), 
+                                      state(init_state),
+                                      dE(init_dE),
+                                      log_energy(_log_ene),
+                                      burn_in(_burn_in),
+                                      sweep_counter(0) {
+        best_ene = DBL_MAX;
+        best_ene_sweep = 0;
+        best_state = init_state;
     }
-    double boltzmann = std::exp(-beta * dE[index]);
-    double rng_comp = p.rand_double();
-    return rng_comp < boltzmann; 
-
-}
-Replica::Replica(Problem& p, 
-                 double _beta, 
-                 const StateVector& init_state, 
-                 const std::vector<double>& init_dE,
-                 double _energy): beta(_beta), 
-                                  flips(0), 
-                                  state(init_state),
-                                  dE(init_dE),
-                                  energy(_energy){
-    best_ene = DBL_MAX;
-    best_state = init_state;
-};
-void Replica::exchange(Replica& other) {
-    std::swap(other.energy, energy);
-    std::swap(other.dE, dE);
-    std::swap(other.state, state);
-}
+} // namespace pticm

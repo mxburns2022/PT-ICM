@@ -63,6 +63,12 @@
         "mutex": "cpp",
         "semaphore": "cpp",
         "stop_token": "cpp",
-        "thread": "cpp"
+        "thread": "cpp",
+        "strstream": "cpp",
+        "iomanip": "cpp",
+        "cfenv": "cpp",
+        "codecvt": "cpp",
+        "any": "cpp",
+        "charconv": "cpp"
     }
 }
