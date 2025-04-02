@@ -1,0 +1,15 @@
+{
+    "burn_in": 500,
+    "sweeps": 1,
+    "replicas": 20,
+    "pts": 2000,
+    "preprocess-samples": 2000,
+    "preprocess-stepsize": 0.1,
+    "temp0": 0.6,
+    "temp1": 2.8,
+    "inverse": false,         
+    "preprocess": false,     
+    "log": false,                 
+    "icm": false,                
+    "verbose": 0
+}

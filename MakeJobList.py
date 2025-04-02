@@ -50,30 +50,11 @@ Slurm Job Array creation script (Please pardon our dust, work in progress)
 coeff = int(round(2 * 6.2e-6 / (31e4 * 20e-15 * 1e-4 )))
 config_list = [
    
-        {
-       "quadratic-model": ["H1"],
-        'project': [False],
-        'shil-coeff': [0],
-        'anneal-power': [1, 0.5],
-        'tstop': [136],
-        'scale0': [1.7],
-        'scale1': [0.2]
-    },
-        {
-       "quadratic-model": ["H1"],
-        'project': [False],
-        'shil-coeff': [1],
-        'tstop': [136],
-        'scale0': [1.7],
-        'scale1': [0.2]
-    },
-        {
-       "quadratic-model": ["H4"],
-        'project': [False],
-        'shil-coeff': [0],
-        'tstop': [136],
-        'scale0': [1.7],
-        'scale1': [0.2]
+    {
+       "pts": ["H1"],
+        'temp0': [0.3],
+        'temp1': [2.0],
+        'preprocess': [True]
     }
 ]
 
@@ -95,12 +76,12 @@ sweep_job_list = [
 ]
 # Define the simulation name and short justification
 # (folder will be sim{sim_no:03d}_{name})
-project = 'Oscillators'
+project = 'PT+ICM'
 sim_no = 0
-name = "quad_bin_test"
+name = "pt_sat_qubo"
 simname = f'sim{sim_no:03d}_{name}'
 justif = """
-    Testing oscillator model performance with an annealed formulation.
+    Testing the efficicacy of the Nusslein formulation
 """
 timeval = datetime.now().isoformat(timespec='seconds')
 
@@ -191,7 +172,7 @@ def main():
     if not os.path.exists(jobpath):
         os.mkdir(jobpath)
     jobrecords = []
-    execpath = result_dir+'/build/oscsim'
+    execpath = result_dir+'/build/pt_icm'
     
     print('Enumerating jobs and writing launch files...')
     for ind, c in tqdm(enumerate(configurations(config_list))):
@@ -303,7 +284,7 @@ def make_job_file(execpath: str,
                   target_directory: str, 
                   config: dict, 
                   job_no: int):
-    """Generate launch files for each oscillator experiment
+    """Generate launch files for each PT experiment
 
     Args:
         target_directory (str): Path to the directory containing the job    
@@ -311,16 +292,16 @@ def make_job_file(execpath: str,
         config (dict)
     """
     header = f"""#!/bin/bash
-#SBATCH --job-name {job_no}_oscillator
-#SBATCH --output={target_directory}/data/osc_output_{job_no}.run
-#SBATCH --error={target_directory}/err/osc_output_{job_no}.err
+#SBATCH --job-name {job_no}_pt
+#SBATCH --output={target_directory}/data/pt_output_{job_no}.run
+#SBATCH --error={target_directory}/err/pt_output_{job_no}.err
 #SBATCH -p {partition}
 #SBATCH --mem={memory}G
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --time={time}
     """
-    filepath = f'{target_directory}/jobs/osc_job_{job_no}.sh'
+    filepath = f'{target_directory}/jobs/pt_job_{job_no}.sh'
     with open(filepath, mode='w') as jobfile:
         
         jobfile.write(f'{header}\n')
