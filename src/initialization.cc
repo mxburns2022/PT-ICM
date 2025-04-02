@@ -144,7 +144,7 @@ namespace pticm {
             w.replica_workers = new int[par.Nt * 2];
             w.chain_index_global = new uint8_t [par.Nt * 2];
             uint64_t ind = 0;
-            for (uint64_t i = 0; i < w.numw - 1; i++) {
+            for (int i = 0; i < (int)w.numw - 1; i++) {
                 for (uint64_t j = 0; j < w.worker_r; j++, ind++) {
                     w.replica_workers[ind] = i;
                     w.chain_index_global[ind] = ind >= par.Nt; 
@@ -156,7 +156,7 @@ namespace pticm {
             }
             // determine number of replicas to be used for ICM
             w.Nc = 0;
-            for (size_t i = par.Nt-1; i >= 0; i--) {
+            for (int i = par.Nt-1; i >= 0; i--) {
                 if (w.beta_values[i] < w.characteristic_scale) {
                     break;
                 }
@@ -168,7 +168,7 @@ namespace pticm {
             std::memcpy(w.chain_index_local, w.chain_index_global, w.loc_r * sizeof(uint8_t));
             std::memcpy(w.beta_values_local, w.beta_values, w.loc_r * sizeof(double));
             // send local beta values and chain indices to each worker
-            for (uint64_t i = 1; i < w.numw - 1; i++) {
+            for (int i = 1; i < w.numw - 1; i++) {
                 double* start_pointer = i * w.worker_r + w.beta_values;
                 MPI_Send(start_pointer, w.worker_r, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
                 uint8_t* start_chain_pointer = i * w.worker_r + w.chain_index_global;

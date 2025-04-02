@@ -105,6 +105,7 @@ namespace pticm {
         double ene = 0.0;
         for (uint64_t i = 0; i < N; i++) {
             int8_t ival = sign(s[i]);
+            ene += ival * linear_terms[i];
             if (sparse) {
                 const std::list<Edge>& iedges = formulation_sparse.at(i);
                 for (auto e: iedges) {
@@ -186,7 +187,7 @@ namespace pticm {
         assert(infile.is_open());
         uint64_t num_linear = 0;
         if (path.find(".ising") != std::string::npos) {
-            infile >> N >> M >> num_linear;
+            infile >> N >>  num_linear >> M;
         } else {
             infile >> N >> M; // Read nodes and edges
         }
@@ -205,7 +206,6 @@ namespace pticm {
         }
         
         int offset = (path.find(".gset") == std::string::npos && path.find(".ising") == std::string::npos) ? -1 : 0;
-        
         std::string line;
         std::istringstream linestream;
         double sum = 0;
@@ -218,6 +218,7 @@ namespace pticm {
             linestream = std::istringstream(line);
             if (numlinread < num_linear) {
               linestream >> u >> w;
+              u += offset;
               linear_terms[u] = w;
               numlinread+=1;
               continue;

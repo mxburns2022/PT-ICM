@@ -1,5 +1,6 @@
 #include "icm.hh"
 #include "mpi_utils.hh"
+#include <cstdio>
 #include <stack>
 
 namespace pticm {
@@ -66,6 +67,7 @@ namespace pticm {
                     }
                 }
             }
+
         }
     }
     // Perform an isoenergetic cluster move on a given replica. Only run by the managing process (w.wid = 0)
@@ -256,7 +258,9 @@ namespace pticm {
 
             // do the ICM
             int64_t seed_val = xor_icm(w, sarr1.get(), sarr2.get());
-            bfs_icm(w.p, seed_val, sarr1.get(), sarr2.get());
+            if (seed_val != -1)
+                bfs_icm(w.p, seed_val, sarr1.get(), sarr2.get());
+            
             // send the new state
             MPI_Send(sarr2.get(), w.p.vcount(), MPI_CXX_BOOL, other_worker, 0, MPI_COMM_WORLD);
             StateVector s1new = std::vector<bool>(sarr1.get(), sarr1.get() + w.p.vcount());
@@ -302,7 +306,8 @@ namespace pticm {
 
             int64_t seed_val = xor_icm(w, sarr1.get(), sarr2.get());
 
-            bfs_icm(w.p, seed_val, sarr1.get(), sarr2.get());
+            if (seed_val != -1)
+                bfs_icm(w.p, seed_val, sarr1.get(), sarr2.get());
 
             StateVector s1new = std::vector<bool>(sarr1.get(), sarr1.get() + w.p.vcount());
             r1.set_state(s1new);

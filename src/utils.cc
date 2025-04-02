@@ -22,7 +22,7 @@ namespace pticm{
     // various utilites for printing to stdout
     std::ostream& operator<<(std::ostream& out, StateVector& vec){
         if (vec.size() > 0) {
-            for (uint64_t i = 0; i < vec.size() - 1; i++) {
+            for (int i = 0; i < (int)(vec.size()) - 1; i++) {
                 out << static_cast<uint32_t>(vec[i]);
             }
             out << static_cast<uint32_t>(vec.back());

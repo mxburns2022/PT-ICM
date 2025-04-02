@@ -158,6 +158,7 @@ namespace pticm {
             fmt::print("num_of_flips: {}\n", flips);
             fmt::print("num_of_swaps: {}\n", w.swaps);
             fmt::print("best_state: {::d}\n", best_state);
+            std::cout << best_state << std::endl;
             fmt::print("{::.6f}\n", std::vector<double> (w.beta_values, w.beta_values + w.params.Nt));
             fmt::print("Total time: {:.6f}\n", totalTime);
         }
