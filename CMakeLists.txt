@@ -1,38 +1,20 @@
 cmake_minimum_required(VERSION 3.11.0)
-set(CMAKE_CXX_STANDARD 17)
-find_package(MPI REQUIRED)
 
-set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
+set(CMAKE_CXX_COMPILER "mpic++")
 if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
   if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
   endif()
 endif()
-project(pt_icm)
+project(PT_ICM)
 # add files
 file( GLOB SOURCES src/*.cc )
-file( GLOB ESTIM_SOURCES estimator/*.cc )
 file( GLOB TEST_SOURCES src/unittests/*.cc )
+set ( execname pt_icm )
 add_executable(${PROJECT_NAME} ${SOURCES})
-if (${CMAKE_BUILD_TYPE} STREQUAL "Release")
-  target_compile_options(${PROJECT_NAME} BEFORE PUBLIC -O3 -fopenmp -funroll-loops -std=c++17)
-endif()
-if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-  target_compile_options(${PROJECT_NAME} BEFORE PUBLIC -g -ggdb -std=c++17)
-endif()
-add_compile_options(-Wall -pedantic)
+set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
+
 target_include_directories(${PROJECT_NAME} BEFORE PRIVATE include)
-# target_link_libraries(${PROJECT_NAME} PUBLIC boost_program_options)
-add_library(replica STATIC src/replica.cc src/problem.cc src/utils.cc)
-target_include_directories(replica BEFORE PRIVATE include)
+target_link_libraries(${PROJECT_NAME} PUBLIC boost_program_options)
 # add_compile_definitions(BOOST)
-target_compile_definitions(${PROJECT_NAME} PUBLIC WHOLE)
-
-add_executable(cae src/cae_estimator.cc)
-target_link_libraries(cae replica)
-target_include_directories(cae BEFORE PRIVATE include)
-target_compile_options(cae BEFORE PUBLIC -O3 -Wall -pedantic)
-
-# Build file for cae standalone
-
 # Add source files
